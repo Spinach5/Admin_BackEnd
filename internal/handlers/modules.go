@@ -22,7 +22,7 @@ func GetModules() gin.HandlerFunc {
 			{"name": "食物列表", "path": "/foods", "icon": "restaurant"},
 			{"name": "事务列表", "path": "/affairs", "icon": "assignment"},
 			{"name": "事务种类", "path": "/affair-categories", "icon": "category"},
-			{"name": "课表查询", "path": "/classtable", "icon": "calendar_today"},
+
 		}
 		dto.Success(c, modules)
 	}

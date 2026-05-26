@@ -82,8 +82,6 @@ func main() {
 			authorized.PUT("/affair-categories/:id", handlers.UpdateAffairCategory())
 			authorized.DELETE("/affair-categories/:id", handlers.DeleteAffairCategory())
 
-			// 课表查询
-			authorized.POST("/classtable", handlers.GetClasstable())
 
 			// Excel 导入
 			authorized.POST("/excel/import", handlers.ImportExcel())

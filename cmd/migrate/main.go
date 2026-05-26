@@ -62,10 +62,10 @@ func main() {
 			id INT AUTO_INCREMENT PRIMARY KEY,
 			name VARCHAR(100) NOT NULL,
 			canteen_name VARCHAR(100) NOT NULL,
-			rating DECIMAL(3,1) DEFAULT 0,
-			comment TEXT,
-			min DECIMAL(10,2) DEFAULT 0,
-			max DECIMAL(10,2) DEFAULT 0
+			rating DECIMAL(3,1) NOT NULL DEFAULT 0,
+			comment TEXT NOT NULL,
+			min DECIMAL(10,2) NOT NULL DEFAULT 0,
+			max DECIMAL(10,2) NOT NULL DEFAULT 0
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 	`)
 	log.Println("  ✓ shops")
@@ -77,9 +77,9 @@ func main() {
 			name VARCHAR(100) NOT NULL,
 			shop_name VARCHAR(100) NOT NULL,
 			canteen_name VARCHAR(100) NOT NULL,
-			price DECIMAL(10,2) DEFAULT 0,
-			taste VARCHAR(50),
-			category VARCHAR(50)
+			price DECIMAL(10,2) NOT NULL DEFAULT 0,
+			taste VARCHAR(50) NOT NULL DEFAULT '',
+			category VARCHAR(50) NOT NULL DEFAULT ''
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 	`)
 	log.Println("  ✓ foods")

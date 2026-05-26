@@ -87,9 +87,4 @@ type UpdateAffairCategoryRequest struct {
 	Name string `json:"name" binding:"required"`
 }
 
-type ClasstableRequest struct {
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
-	Year     string `json:"year" binding:"required"`
-	Semester string `json:"semester" binding:"required"`
-}
+
