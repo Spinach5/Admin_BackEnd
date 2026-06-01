@@ -73,8 +73,7 @@ func CreateUser() gin.HandlerFunc {
 		}
 
 		// 检查账号是否已存在
-		existing, _ := models.GetUserByAccount(database.DB, req.Account)
-		if existing != nil {
+		if _, err := models.GetUserByAccount(database.DB, req.Account); err == nil {
 			dto.Error(c, 200, "账号已存在，请使用其他账号")
 			return
 		}

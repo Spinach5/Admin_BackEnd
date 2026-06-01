@@ -18,49 +18,49 @@ type User struct {
 
 func GetUserByAccount(db *sqlx.DB, account string) (*User, error) {
 	var user User
-	err := db.Get(&user, "SELECT id, account, password, is_super, is_active, created_at, updated_at FROM users WHERE account = ?", account)
+	err := db.Get(&user, "SELECT id, account, password, is_super, is_active, created_at, updated_at FROM admins WHERE account = ?", account)
 	return &user, err
 }
 
 func GetUserByID(db *sqlx.DB, id int) (*User, error) {
 	var user User
-	err := db.Get(&user, "SELECT id, account, is_super, is_active, created_at, updated_at FROM users WHERE id = ?", id)
+	err := db.Get(&user, "SELECT id, account, is_super, is_active, created_at, updated_at FROM admins WHERE id = ?", id)
 	return &user, err
 }
 
 func GetAllUsers(db *sqlx.DB) ([]User, error) {
 	var users []User
-	err := db.Select(&users, "SELECT id, account, is_super, is_active, created_at, updated_at FROM users ORDER BY id")
+	err := db.Select(&users, "SELECT id, account, is_super, is_active, created_at, updated_at FROM admins ORDER BY id")
 	return users, err
 }
 
 func CreateUser(db *sqlx.DB, account, password string, isSuper int) error {
-	_, err := db.Exec("INSERT INTO users (account, password, is_super) VALUES (?, ?, ?)", account, password, isSuper)
+	_, err := db.Exec("INSERT INTO admins (account, password, is_super) VALUES (?, ?, ?)", account, password, isSuper)
 	return err
 }
 
 func UpdateUser(db *sqlx.DB, id int, account, password string, isSuper, isActive int) error {
 	if password != "" {
-		_, err := db.Exec("UPDATE users SET account=?, password=?, is_super=?, is_active=? WHERE id=?",
+		_, err := db.Exec("UPDATE admins SET account=?, password=?, is_super=?, is_active=? WHERE id=?",
 			account, password, isSuper, isActive, id)
 		return err
 	}
-	_, err := db.Exec("UPDATE users SET account=?, is_super=?, is_active=? WHERE id=?",
+	_, err := db.Exec("UPDATE admins SET account=?, is_super=?, is_active=? WHERE id=?",
 		account, isSuper, isActive, id)
 	return err
 }
 
 func DeleteUser(db *sqlx.DB, id int) error {
-	_, err := db.Exec("DELETE FROM users WHERE id = ?", id)
+	_, err := db.Exec("DELETE FROM admins WHERE id = ?", id)
 	return err
 }
 
 func UpdateUserPassword(db *sqlx.DB, account, password string) error {
-	_, err := db.Exec("UPDATE users SET password=? WHERE account=?", password, account)
+	_, err := db.Exec("UPDATE admins SET password=? WHERE account=?", password, account)
 	return err
 }
 
 func SetUserActive(db *sqlx.DB, account string, active int) error {
-	_, err := db.Exec("UPDATE users SET is_active = ? WHERE account = ?", active, account)
+	_, err := db.Exec("UPDATE admins SET is_active = ? WHERE account = ?", active, account)
 	return err
 }
