@@ -77,6 +77,7 @@ func importShops(result *services.ExcelResult) (int, error) {
 		shops = append(shops, models.Shop{
 			Name:        row["name"],
 			CanteenName: row["canteen_name"],
+			SchoolID:    row["school_id"],
 			Rating:      rating,
 			Comment:     row["comment"],
 			Min:         min,
@@ -95,6 +96,7 @@ func importFoods(result *services.ExcelResult) (int, error) {
 			Name:        row["name"],
 			ShopName:    row["shop_name"],
 			CanteenName: row["canteen_name"],
+			SchoolID:    row["school_id"],
 			Price:       price,
 			Taste:       row["taste"],
 			Category:    row["category"],
@@ -112,6 +114,7 @@ func importAffairs(result *services.ExcelResult) (int, error) {
 			Link:     row["link"],
 			Details:  row["details"],
 			Channel:  row["channel"],
+			SchoolID: row["school_id"],
 		})
 	}
 	return models.CreateAffairsBatch(database.DB, affairs)

@@ -52,11 +52,26 @@ func main() {
 			admin := authorized.Group("/admin")
 			admin.Use(middleware.RequireSuperAdmin())
 			{
-				admin.GET("/users", handlers.GetUsers())
-				admin.POST("/users", handlers.CreateUser())
-				admin.PUT("/users/:id", handlers.UpdateUser())
-				admin.DELETE("/users/:id", handlers.DeleteUser())
+				admin.GET("/admins", handlers.GetAdmins())
+				admin.POST("/admins", handlers.CreateAdmin())
+				admin.PUT("/admins/:id", handlers.UpdateAdmin())
+				admin.DELETE("/admins/:id", handlers.DeleteAdmin())
 			}
+
+			// 普通用户管理
+			authorized.GET("/users", handlers.GetUsers())
+			authorized.GET("/users/:id", handlers.GetUserByID())
+			authorized.POST("/users", handlers.CreateUser())
+			authorized.PUT("/users/:id", handlers.UpdateUser())
+			authorized.DELETE("/users/:id", handlers.SoftDeleteUser())
+			authorized.DELETE("/users/:id/hard", handlers.HardDeleteUser())
+
+			// 书籍管理
+			authorized.GET("/books", handlers.GetBooks())
+			authorized.GET("/books/:id", handlers.GetBookByID())
+			authorized.POST("/books", handlers.CreateBook())
+			authorized.PUT("/books/:id", handlers.UpdateBook())
+			authorized.DELETE("/books/:id", handlers.DeleteBook())
 
 			// 餐厅管理
 			authorized.GET("/shops", handlers.GetShops())
@@ -87,6 +102,18 @@ func main() {
 			authorized.POST("/excel/import", handlers.ImportExcel())
 			authorized.POST("/excel/preview", handlers.PreviewExcel())
 		}
+
+		// V1 普通用户接口
+		v1 := r.Group("/api/v1")
+		v1.Use(middleware.V1Auth())
+		{
+			v1.POST("/foods", handlers.V1GetFoods())
+			v1.POST("/shops", handlers.V1GetShops())
+			v1.POST("/affairs", handlers.V1GetAffairs())
+			v1.POST("/books", handlers.V1GetBooks())
+			v1.POST("/books/add", handlers.V1AddBook())
+			v1.POST("/books/delete", handlers.V1DeleteBook())
+		}
 	}
 
 	log.Printf("服务器运行在：http://localhost:%s", cfg.Port)
@@ -96,7 +123,7 @@ func main() {
 }
 
 func resetLoginStatus() {
-	_, err := database.DB.Exec("UPDATE users SET is_active = 0 WHERE is_active = 1")
+	_, err := database.DB.Exec("UPDATE admins SET is_active = 0 WHERE is_active = 1")
 	if err != nil {
 		log.Printf("重置登录状态失败: %v", err)
 		return

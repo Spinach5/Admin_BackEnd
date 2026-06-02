@@ -20,9 +20,9 @@ import (
 // @Produce json
 // @Success 200 {object} dto.Response
 // @Router /api/admin/users [get]
-func GetUsers() gin.HandlerFunc {
+func GetAdmins() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		users, err := models.GetAllUsers(database.DB)
+		users, err := models.GetAllAdmins(database.DB)
 		if err != nil {
 			dto.InternalError(c, "获取用户列表失败")
 			return
@@ -39,14 +39,14 @@ func GetUsers() gin.HandlerFunc {
 // @Param id path int true "用户ID"
 // @Success 200 {object} dto.Response
 // @Router /api/admin/users/{id} [get]
-func GetUserByID() gin.HandlerFunc {
+func GetAdminByID() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.Atoi(c.Param("id"))
 		if err != nil {
 			dto.BadRequest(c, "无效的用户ID")
 			return
 		}
-		user, err := models.GetUserByID(database.DB, id)
+		user, err := models.GetAdminByID(database.DB, id)
 		if err != nil {
 			dto.Error(c, 404, "用户不存在")
 			return
@@ -61,19 +61,19 @@ func GetUserByID() gin.HandlerFunc {
 // @Security BearerAuth
 // @Accept json
 // @Produce json
-// @Param request body dto.CreateUserRequest true "用户信息"
+// @Param request body dto.CreateAdminRequest true "用户信息"
 // @Success 200 {object} dto.Response
 // @Router /api/admin/users [post]
-func CreateUser() gin.HandlerFunc {
+func CreateAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var req dto.CreateUserRequest
+		var req dto.CreateAdminRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			dto.BadRequest(c, "缺少必要参数")
 			return
 		}
 
 		// 检查账号是否已存在
-		if _, err := models.GetUserByAccount(database.DB, req.Account); err == nil {
+		if _, err := models.GetAdminByAccount(database.DB, req.Account); err == nil {
 			dto.Error(c, 200, "账号已存在，请使用其他账号")
 			return
 		}
@@ -84,7 +84,7 @@ func CreateUser() gin.HandlerFunc {
 			return
 		}
 
-		if err := models.CreateUser(database.DB, req.Account, string(hashed), req.IsSuper); err != nil {
+		if err := models.CreateAdmin(database.DB, req.Account, string(hashed), req.IsSuper); err != nil {
 			log.Printf("添加用户失败: %v", err)
 			dto.InternalError(c, "添加用户失败")
 			return
@@ -101,10 +101,10 @@ func CreateUser() gin.HandlerFunc {
 // @Accept json
 // @Produce json
 // @Param id path int true "用户ID"
-// @Param request body dto.UpdateUserRequest true "用户信息"
+// @Param request body dto.UpdateAdminRequest true "用户信息"
 // @Success 200 {object} dto.Response
 // @Router /api/admin/users/{id} [put]
-func UpdateUser() gin.HandlerFunc {
+func UpdateAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.Atoi(c.Param("id"))
 		if err != nil {
@@ -112,7 +112,7 @@ func UpdateUser() gin.HandlerFunc {
 			return
 		}
 
-		var req dto.UpdateUserRequest
+		var req dto.UpdateAdminRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			dto.BadRequest(c, "缺少必要参数")
 			return
@@ -135,7 +135,7 @@ func UpdateUser() gin.HandlerFunc {
 			hashed = string(h)
 		}
 
-		if err := models.UpdateUser(database.DB, id, req.Account, hashed, req.IsSuper, req.IsActive); err != nil {
+		if err := models.UpdateAdmin(database.DB, id, req.Account, hashed, req.IsSuper, req.IsActive); err != nil {
 			log.Printf("更新用户失败: %v", err)
 			dto.InternalError(c, "更新用户失败")
 			return
@@ -153,7 +153,7 @@ func UpdateUser() gin.HandlerFunc {
 // @Param id path int true "用户ID"
 // @Success 200 {object} dto.Response
 // @Router /api/admin/users/{id} [delete]
-func DeleteUser() gin.HandlerFunc {
+func DeleteAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.Atoi(c.Param("id"))
 		if err != nil {
@@ -168,7 +168,7 @@ func DeleteUser() gin.HandlerFunc {
 		}
 
 		// 检查目标用户是否为超级管理员
-		target, err := models.GetUserByID(database.DB, id)
+		target, err := models.GetAdminByID(database.DB, id)
 		if err != nil {
 			dto.Error(c, 404, "用户不存在")
 			return
@@ -178,7 +178,7 @@ func DeleteUser() gin.HandlerFunc {
 			return
 		}
 
-		if err := models.DeleteUser(database.DB, id); err != nil {
+		if err := models.DeleteAdmin(database.DB, id); err != nil {
 			log.Printf("删除用户失败: %v", err)
 			dto.InternalError(c, "删除用户失败")
 			return

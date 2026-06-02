@@ -13,30 +13,37 @@ type Affair struct {
 	Link      string    `db:"link" json:"link"`
 	Details   string    `db:"details" json:"details"`
 	Channel   string    `db:"channel" json:"channel"`
+	SchoolID  string    `db:"school_id" json:"school_id"`
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
 }
 
+func GetAffairsBySchool(db *sqlx.DB, schoolID string) ([]Affair, error) {
+	affairs := make([]Affair, 0)
+	err := db.Select(&affairs, "SELECT id, name, category, link, details, channel, school_id, created_at FROM affairs WHERE school_id = ? ORDER BY id", schoolID)
+	return affairs, err
+}
+
 func GetAllAffairs(db *sqlx.DB) ([]Affair, error) {
-	var affairs []Affair
-	err := db.Select(&affairs, "SELECT id, name, category, link, details, channel, created_at FROM affairs ORDER BY id")
+	affairs := make([]Affair, 0)
+	err := db.Select(&affairs, "SELECT id, name, category, link, details, channel, school_id, created_at FROM affairs ORDER BY id")
 	return affairs, err
 }
 
 func GetAffairByID(db *sqlx.DB, id int) (*Affair, error) {
 	var affair Affair
-	err := db.Get(&affair, "SELECT id, name, category, link, details, channel, created_at FROM affairs WHERE id = ?", id)
+	err := db.Get(&affair, "SELECT id, name, category, link, details, channel, school_id, created_at FROM affairs WHERE id = ?", id)
 	return &affair, err
 }
 
 func CreateAffair(db *sqlx.DB, a *Affair) error {
-	_, err := db.Exec("INSERT INTO affairs (name, category, link, details, channel) VALUES (?, ?, ?, ?, ?)",
-		a.Name, a.Category, a.Link, a.Details, a.Channel)
+	_, err := db.Exec("INSERT INTO affairs (name, category, link, details, channel, school_id) VALUES (?, ?, ?, ?, ?, ?)",
+		a.Name, a.Category, a.Link, a.Details, a.Channel, a.SchoolID)
 	return err
 }
 
 func UpdateAffair(db *sqlx.DB, a *Affair) error {
-	_, err := db.Exec("UPDATE affairs SET name=?, category=?, link=?, details=?, channel=? WHERE id=?",
-		a.Name, a.Category, a.Link, a.Details, a.Channel, a.ID)
+	_, err := db.Exec("UPDATE affairs SET name=?, category=?, link=?, details=?, channel=?, school_id=? WHERE id=?",
+		a.Name, a.Category, a.Link, a.Details, a.Channel, a.SchoolID, a.ID)
 	return err
 }
 
@@ -52,7 +59,7 @@ func CreateAffairsBatch(db *sqlx.DB, affairs []Affair) (int, error) {
 	}
 	defer tx.Rollback()
 
-	stmt, err := tx.Prepare("INSERT INTO affairs (name, category, link, details, channel) VALUES (?, ?, ?, ?, ?)")
+	stmt, err := tx.Prepare("INSERT INTO affairs (name, category, link, details, channel, school_id) VALUES (?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		return 0, err
 	}
@@ -60,7 +67,7 @@ func CreateAffairsBatch(db *sqlx.DB, affairs []Affair) (int, error) {
 
 	inserted := 0
 	for _, a := range affairs {
-		_, err := stmt.Exec(a.Name, a.Category, a.Link, a.Details, a.Channel)
+		_, err := stmt.Exec(a.Name, a.Category, a.Link, a.Details, a.Channel, a.SchoolID)
 		if err != nil {
 			continue
 		}

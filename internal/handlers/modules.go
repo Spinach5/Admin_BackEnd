@@ -17,7 +17,8 @@ import (
 func GetModules() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		modules := []gin.H{
-			{"name": "管理员列表", "path": "/admin", "icon": "people"},
+			{"name": "管理员列表", "path": "/admin/admins", "icon": "people"},
+			{"name": "用户管理", "path": "/users", "icon": "group"},
 			{"name": "餐厅列表", "path": "/shops", "icon": "store"},
 			{"name": "食物列表", "path": "/foods", "icon": "restaurant"},
 			{"name": "事务列表", "path": "/affairs", "icon": "assignment"},

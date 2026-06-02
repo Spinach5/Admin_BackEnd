@@ -49,6 +49,7 @@ func CreateShop() gin.HandlerFunc {
 		shop := &models.Shop{
 			Name:        req.Name,
 			CanteenName: req.CanteenName,
+			SchoolID:    req.SchoolID,
 			Rating:      req.Rating,
 			Comment:     req.Comment,
 			Min:         req.Min,
@@ -93,6 +94,7 @@ func UpdateShop() gin.HandlerFunc {
 			ID:          id,
 			Name:        req.Name,
 			CanteenName: req.CanteenName,
+			SchoolID:    req.SchoolID,
 			Rating:      req.Rating,
 			Comment:     req.Comment,
 			Min:         req.Min,

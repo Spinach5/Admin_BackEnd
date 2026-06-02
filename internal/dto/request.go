@@ -10,13 +10,13 @@ type ChangePasswordRequest struct {
 	NewPassword string `json:"new_password" binding:"required" validate:"required,min=8"`
 }
 
-type CreateUserRequest struct {
+type CreateAdminRequest struct {
 	Account  string `json:"account" binding:"required" validate:"required,min=2"`
 	Password string `json:"password" binding:"required" validate:"required,min=8"`
 	IsSuper  int    `json:"is_super" binding:"omitempty" validate:"oneof=0 1"`
 }
 
-type UpdateUserRequest struct {
+type UpdateAdminRequest struct {
 	Account  string `json:"account" binding:"required" validate:"required,min=2"`
 	Password string `json:"password" binding:"omitempty" validate:"omitempty,min=8"`
 	IsSuper  int    `json:"is_super" binding:"required" validate:"oneof=0 1"`
@@ -26,6 +26,7 @@ type UpdateUserRequest struct {
 type CreateShopRequest struct {
 	Name        string  `json:"name" binding:"required" validate:"required"`
 	CanteenName string  `json:"canteen_name" binding:"required" validate:"required"`
+	SchoolID    string  `json:"school_id"`
 	Rating      float64 `json:"rating" binding:"required" validate:"gte=0,lte=5"`
 	Comment     string  `json:"comment" binding:"required"`
 	Min         float64 `json:"min" binding:"required"`
@@ -36,6 +37,7 @@ type UpdateShopRequest struct {
 	ID          int     `json:"id" binding:"required"`
 	Name        string  `json:"name" binding:"required"`
 	CanteenName string  `json:"canteen_name" binding:"required"`
+	SchoolID    string  `json:"school_id" binding:"required"`
 	Rating      float64 `json:"rating" binding:"required"`
 	Comment     string  `json:"comment" binding:"required"`
 	Min         float64 `json:"min" binding:"required"`
@@ -46,6 +48,7 @@ type CreateFoodRequest struct {
 	Name        string  `json:"name" binding:"required"`
 	ShopName    string  `json:"shop_name" binding:"required"`
 	CanteenName string  `json:"canteen_name" binding:"required"`
+	SchoolID    string  `json:"school_id"`
 	Price       float64 `json:"price" binding:"required"`
 	Taste       string  `json:"taste" binding:"required"`
 	Category    string  `json:"category" binding:"required"`
@@ -56,6 +59,7 @@ type UpdateFoodRequest struct {
 	Name        string  `json:"name" binding:"required"`
 	ShopName    string  `json:"shop_name" binding:"required"`
 	CanteenName string  `json:"canteen_name" binding:"required"`
+	SchoolID    string  `json:"school_id" binding:"required"`
 	Price       float64 `json:"price" binding:"required"`
 	Taste       string  `json:"taste" binding:"required"`
 	Category    string  `json:"category" binding:"required"`
@@ -67,6 +71,7 @@ type CreateAffairRequest struct {
 	Link     string `json:"link" binding:"required"`
 	Details  string `json:"details" binding:"required"`
 	Channel  string `json:"channel" binding:"required"`
+	SchoolID string `json:"school_id"`
 }
 
 type UpdateAffairRequest struct {
@@ -76,6 +81,7 @@ type UpdateAffairRequest struct {
 	Link     string `json:"link" binding:"required"`
 	Details  string `json:"details" binding:"required"`
 	Channel  string `json:"channel" binding:"required"`
+	SchoolID string `json:"school_id" binding:"required"`
 }
 
 type CreateAffairCategoryRequest struct {
@@ -87,4 +93,56 @@ type UpdateAffairCategoryRequest struct {
 	Name string `json:"name" binding:"required"`
 }
 
+type CreateUserRequest struct {
+	StuID    string `json:"stuId" binding:"required"`
+	NickName string `json:"nickName" binding:"required"`
+	SchoolID string `json:"schoolId" binding:"required"`
+}
 
+type UpdateUserRequest struct {
+	StuID    string `json:"stuId" binding:"required"`
+	NickName string `json:"nickName" binding:"required"`
+	SchoolID string `json:"schoolId" binding:"required"`
+}
+
+type CreateBookRequest struct {
+	Title    string  `json:"title" binding:"required"`
+	Category *string `json:"category"`
+	ImageURL *string `json:"image_url"`
+	Price    *string `json:"price"`
+	ISBN     *string `json:"isbn"`
+	Contact  *string `json:"contact"`
+	UserID   int     `json:"user_id" binding:"required"`
+	Status   string  `json:"status"`
+}
+
+type UpdateBookRequest struct {
+	Title    string  `json:"title" binding:"required"`
+	Category *string `json:"category"`
+	ImageURL *string `json:"image_url"`
+	Price    *string `json:"price"`
+	ISBN     *string `json:"isbn"`
+	Contact  *string `json:"contact"`
+	UserID   *int    `json:"user_id"`
+	Status   *string `json:"status"`
+}
+
+// V1 普通用户请求
+type V1BaseRequest struct {
+	ID       int    `json:"id" binding:"required"`
+	StuID    string `json:"stuId" binding:"required"`
+	SchoolID string `json:"schoolId" binding:"required"`
+}
+
+type V1AddBookRequest struct {
+	Title    string  `json:"title" binding:"required"`
+	Category *string `json:"category"`
+	ImageURL *string `json:"image_url"`
+	Price    *string `json:"price"`
+	ISBN     *string `json:"isbn"`
+	Contact  *string `json:"contact"`
+}
+
+type V1DeleteBookRequest struct {
+	BookID int `json:"book_id" binding:"required"`
+}

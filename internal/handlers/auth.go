@@ -34,7 +34,7 @@ func Login(cfg *config.Config) gin.HandlerFunc {
 
 		log.Printf("登录请求，账号: %s", req.Account)
 
-		user, err := models.GetUserByAccount(database.DB, req.Account)
+		user, err := models.GetAdminByAccount(database.DB, req.Account)
 		if err == sql.ErrNoRows {
 			dto.Error(c, 200, "账号不存在")
 			return
@@ -55,7 +55,7 @@ func Login(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
-		models.SetUserActive(database.DB, user.Account, 1)
+		models.SetAdminActive(database.DB, user.Account, 1)
 
 		expireHours := 24
 		if v := cfg.JWTExpireHours; v != "" {
@@ -94,7 +94,7 @@ func Logout() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		account := middleware.GetCurrentAccount(c)
 		if account != "" {
-			models.SetUserActive(database.DB, account, 0)
+			models.SetAdminActive(database.DB, account, 0)
 			log.Printf("用户 %s 已登出", account)
 		}
 		dto.SuccessMessage(c, "已退出登录")
@@ -112,7 +112,7 @@ func Logout() gin.HandlerFunc {
 func GetMe() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := middleware.GetCurrentUserID(c)
-		user, err := models.GetUserByID(database.DB, userID)
+		user, err := models.GetAdminByID(database.DB, userID)
 		if err != nil {
 			dto.Unauthorized(c, "用户不存在")
 			return
@@ -145,7 +145,7 @@ func ChangePassword() gin.HandlerFunc {
 		}
 
 		account := middleware.GetCurrentAccount(c)
-		user, err := models.GetUserByAccount(database.DB, account)
+		user, err := models.GetAdminByAccount(database.DB, account)
 		if err != nil {
 			dto.InternalError(c, "服务器错误")
 			return
@@ -162,7 +162,7 @@ func ChangePassword() gin.HandlerFunc {
 			return
 		}
 
-		if err := models.UpdateUserPassword(database.DB, account, string(hashed)); err != nil {
+		if err := models.UpdateAdminPassword(database.DB, account, string(hashed)); err != nil {
 			dto.InternalError(c, "修改密码失败")
 			return
 		}

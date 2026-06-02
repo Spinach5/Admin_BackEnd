@@ -21,12 +21,8 @@ type Config struct {
 }
 
 func Load() *Config {
-	godotenv.Load()
-	err := godotenv.Load()
-	if err != nil {
+	if err := godotenv.Load(); err != nil {
 		log.Println("警告：加载 .env 文件失败:", err)
-	} else {
-		log.Println("成功加载 .env 文件")
 	}
 	return &Config{
 		Port:           getEnv("PORT", "3001"),

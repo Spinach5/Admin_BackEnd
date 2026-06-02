@@ -13,7 +13,7 @@ type AffairCategory struct {
 }
 
 func GetAllAffairCategories(db *sqlx.DB) ([]AffairCategory, error) {
-	var cats []AffairCategory
+	cats := make([]AffairCategory, 0)
 	err := db.Select(&cats, "SELECT id, name, created_at FROM affair_categories ORDER BY id")
 	return cats, err
 }

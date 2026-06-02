@@ -52,6 +52,7 @@ func CreateAffair() gin.HandlerFunc {
 			Link:     req.Link,
 			Details:  req.Details,
 			Channel:  req.Channel,
+			SchoolID: req.SchoolID,
 		}
 
 		if err := models.CreateAffair(database.DB, affair); err != nil {
@@ -95,6 +96,7 @@ func UpdateAffair() gin.HandlerFunc {
 			Link:     req.Link,
 			Details:  req.Details,
 			Channel:  req.Channel,
+			SchoolID: req.SchoolID,
 		}
 
 		if err := models.UpdateAffair(database.DB, affair); err != nil {

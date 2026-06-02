@@ -42,9 +42,9 @@ func main() {
 
 	log.Println("开始创建表...")
 
-	// 用户表
+	// 管理员表
 	appDB.MustExec(`
-		CREATE TABLE IF NOT EXISTS users (
+		CREATE TABLE IF NOT EXISTS admins (
 			id INT AUTO_INCREMENT PRIMARY KEY,
 			account VARCHAR(50) NOT NULL UNIQUE,
 			password VARCHAR(255) NOT NULL,
@@ -54,7 +54,7 @@ func main() {
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 	`)
-	log.Println("  ✓ users")
+	log.Println("  ✓ admins")
 
 	// 餐厅表
 	appDB.MustExec(`
@@ -62,6 +62,7 @@ func main() {
 			id INT AUTO_INCREMENT PRIMARY KEY,
 			name VARCHAR(100) NOT NULL,
 			canteen_name VARCHAR(100) NOT NULL,
+			school_id VARCHAR(50) NOT NULL DEFAULT 'hbut',
 			rating DECIMAL(3,1) NOT NULL DEFAULT 0,
 			comment TEXT NOT NULL,
 			min DECIMAL(10,2) NOT NULL DEFAULT 0,
@@ -77,6 +78,7 @@ func main() {
 			name VARCHAR(100) NOT NULL,
 			shop_name VARCHAR(100) NOT NULL,
 			canteen_name VARCHAR(100) NOT NULL,
+			school_id VARCHAR(50) NOT NULL DEFAULT 'hbut',
 			price DECIMAL(10,2) NOT NULL DEFAULT 0,
 			taste VARCHAR(50) NOT NULL DEFAULT '',
 			category VARCHAR(50) NOT NULL DEFAULT ''
@@ -93,6 +95,7 @@ func main() {
 			link VARCHAR(500),
 			details TEXT,
 			channel VARCHAR(50),
+			school_id VARCHAR(50) NOT NULL DEFAULT 'hbut',
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 	`)
@@ -108,12 +111,42 @@ func main() {
 	`)
 	log.Println("  ✓ affair_categories")
 
+	// 普通用户表
+	appDB.MustExec(`
+		CREATE TABLE IF NOT EXISTS users (
+			id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+			stuId VARCHAR(50) NOT NULL COMMENT '学号，唯一标识',
+			nickName VARCHAR(100) NOT NULL COMMENT '昵称',
+			schoolId VARCHAR(50) NOT NULL COMMENT '学校代码，关联学校信息表',
+			createdAt DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+			isDeleted TINYINT(1) UNSIGNED DEFAULT 0 COMMENT '软删除标记（0-未删除，1-已删除）'
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+	`)
+	log.Println("  ✓ users")
+
+	// 书籍表
+	appDB.MustExec(`
+		CREATE TABLE IF NOT EXISTS book (
+			book_id INT(10) UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '书籍ID',
+			title VARCHAR(255) NOT NULL COMMENT '书名',
+			category VARCHAR(100) COMMENT '分类',
+			image_url VARCHAR(500) COMMENT '图片链接',
+			price DECIMAL(10,2) COMMENT '价格',
+			isbn VARCHAR(20) COMMENT 'ISBN',
+			contact VARCHAR(255) COMMENT '联系方式',
+			user_id INT(10) UNSIGNED NOT NULL COMMENT '发布者ID',
+			status VARCHAR(20) NOT NULL DEFAULT 'active' COMMENT '状态',
+			create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+			status_change_time DATETIME COMMENT '状态变更时间'
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+	`)
+
 	// 插入默认管理员账号
 	var count int
-	appDB.Get(&count, "SELECT COUNT(*) FROM users WHERE account = 'admin'")
+	appDB.Get(&count, "SELECT COUNT(*) FROM admins WHERE account = 'admin'")
 	if count == 0 {
 		hashed, _ := bcrypt.GenerateFromPassword([]byte("admin123"), 12)
-		appDB.MustExec("INSERT INTO users (account, password, is_super) VALUES (?, ?, ?)", "admin", string(hashed), 1)
+		appDB.MustExec("INSERT INTO admins (account, password, is_super) VALUES (?, ?, ?)", "admin", string(hashed), 1)
 		log.Println("已创建默认管理员: admin / admin123")
 	} else {
 		log.Println("管理员账号已存在，跳过")

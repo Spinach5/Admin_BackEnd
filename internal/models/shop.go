@@ -6,33 +6,40 @@ type Shop struct {
 	ID          int     `db:"id" json:"id"`
 	Name        string  `db:"name" json:"name"`
 	CanteenName string  `db:"canteen_name" json:"canteen_name"`
+	SchoolID    string  `db:"school_id" json:"school_id"`
 	Rating      float64 `db:"rating" json:"rating"`
 	Comment     string  `db:"comment" json:"comment"`
 	Min         float64 `db:"min" json:"min"`
 	Max         float64 `db:"max" json:"max"`
 }
 
+func GetShopsBySchool(db *sqlx.DB, schoolID string) ([]Shop, error) {
+	shops := make([]Shop, 0)
+	err := db.Select(&shops, "SELECT id, name, canteen_name, school_id, rating, comment, min, max FROM shops WHERE school_id = ? ORDER BY id", schoolID)
+	return shops, err
+}
+
 func GetAllShops(db *sqlx.DB) ([]Shop, error) {
-	var shops []Shop
-	err := db.Select(&shops, "SELECT id, name, canteen_name, rating, comment, min, max FROM shops ORDER BY id")
+	shops := make([]Shop, 0)
+	err := db.Select(&shops, "SELECT id, name, canteen_name, school_id, rating, comment, min, max FROM shops ORDER BY id")
 	return shops, err
 }
 
 func GetShopByID(db *sqlx.DB, id int) (*Shop, error) {
 	var shop Shop
-	err := db.Get(&shop, "SELECT id, name, canteen_name, rating, comment, min, max FROM shops WHERE id = ?", id)
+	err := db.Get(&shop, "SELECT id, name, canteen_name, school_id, rating, comment, min, max FROM shops WHERE id = ?", id)
 	return &shop, err
 }
 
 func CreateShop(db *sqlx.DB, s *Shop) error {
-	_, err := db.Exec("INSERT INTO shops (name, canteen_name, rating, comment, min, max) VALUES (?, ?, ?, ?, ?, ?)",
-		s.Name, s.CanteenName, s.Rating, s.Comment, s.Min, s.Max)
+	_, err := db.Exec("INSERT INTO shops (name, canteen_name, school_id, rating, comment, min, max) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		s.Name, s.CanteenName, s.SchoolID, s.Rating, s.Comment, s.Min, s.Max)
 	return err
 }
 
 func UpdateShop(db *sqlx.DB, s *Shop) error {
-	_, err := db.Exec("UPDATE shops SET name=?, canteen_name=?, rating=?, comment=?, min=?, max=? WHERE id=?",
-		s.Name, s.CanteenName, s.Rating, s.Comment, s.Min, s.Max, s.ID)
+	_, err := db.Exec("UPDATE shops SET name=?, canteen_name=?, school_id=?, rating=?, comment=?, min=?, max=? WHERE id=?",
+		s.Name, s.CanteenName, s.SchoolID, s.Rating, s.Comment, s.Min, s.Max, s.ID)
 	return err
 }
 
@@ -48,7 +55,7 @@ func CreateShopsBatch(db *sqlx.DB, shops []Shop) (int, error) {
 	}
 	defer tx.Rollback()
 
-	stmt, err := tx.Prepare("INSERT INTO shops (name, canteen_name, rating, comment, min, max) VALUES (?, ?, ?, ?, ?, ?)")
+	stmt, err := tx.Prepare("INSERT INTO shops (name, canteen_name, school_id, rating, comment, min, max) VALUES (?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		return 0, err
 	}
@@ -56,7 +63,7 @@ func CreateShopsBatch(db *sqlx.DB, shops []Shop) (int, error) {
 
 	inserted := 0
 	for _, s := range shops {
-		_, err := stmt.Exec(s.Name, s.CanteenName, s.Rating, s.Comment, s.Min, s.Max)
+		_, err := stmt.Exec(s.Name, s.CanteenName, s.SchoolID, s.Rating, s.Comment, s.Min, s.Max)
 		if err != nil {
 			continue
 		}

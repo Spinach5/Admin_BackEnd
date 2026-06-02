@@ -7,32 +7,39 @@ type Food struct {
 	Name        string  `db:"name" json:"name"`
 	ShopName    string  `db:"shop_name" json:"shop_name"`
 	CanteenName string  `db:"canteen_name" json:"canteen_name"`
+	SchoolID    string  `db:"school_id" json:"school_id"`
 	Price       float64 `db:"price" json:"price"`
 	Taste       string  `db:"taste" json:"taste"`
 	Category    string  `db:"category" json:"category"`
 }
 
+func GetFoodsBySchool(db *sqlx.DB, schoolID string) ([]Food, error) {
+	foods := make([]Food, 0)
+	err := db.Select(&foods, "SELECT id, name, shop_name, canteen_name, school_id, price, taste, category FROM foods WHERE school_id = ? ORDER BY id", schoolID)
+	return foods, err
+}
+
 func GetAllFoods(db *sqlx.DB) ([]Food, error) {
-	var foods []Food
-	err := db.Select(&foods, "SELECT id, name, shop_name, canteen_name, price, taste, category FROM foods ORDER BY id")
+	foods := make([]Food, 0)
+	err := db.Select(&foods, "SELECT id, name, shop_name, canteen_name, school_id, price, taste, category FROM foods ORDER BY id")
 	return foods, err
 }
 
 func GetFoodByID(db *sqlx.DB, id int) (*Food, error) {
 	var food Food
-	err := db.Get(&food, "SELECT id, name, shop_name, canteen_name, price, taste, category FROM foods WHERE id = ?", id)
+	err := db.Get(&food, "SELECT id, name, shop_name, canteen_name, school_id, price, taste, category FROM foods WHERE id = ?", id)
 	return &food, err
 }
 
 func CreateFood(db *sqlx.DB, f *Food) error {
-	_, err := db.Exec("INSERT INTO foods (name, shop_name, canteen_name, price, taste, category) VALUES (?, ?, ?, ?, ?, ?)",
-		f.Name, f.ShopName, f.CanteenName, f.Price, f.Taste, f.Category)
+	_, err := db.Exec("INSERT INTO foods (name, shop_name, canteen_name, school_id, price, taste, category) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		f.Name, f.ShopName, f.CanteenName, f.SchoolID, f.Price, f.Taste, f.Category)
 	return err
 }
 
 func UpdateFood(db *sqlx.DB, f *Food) error {
-	_, err := db.Exec("UPDATE foods SET name=?, shop_name=?, canteen_name=?, price=?, taste=?, category=? WHERE id=?",
-		f.Name, f.ShopName, f.CanteenName, f.Price, f.Taste, f.Category, f.ID)
+	_, err := db.Exec("UPDATE foods SET name=?, shop_name=?, canteen_name=?, school_id=?, price=?, taste=?, category=? WHERE id=?",
+		f.Name, f.ShopName, f.CanteenName, f.SchoolID, f.Price, f.Taste, f.Category, f.ID)
 	return err
 }
 
@@ -48,7 +55,7 @@ func CreateFoodsBatch(db *sqlx.DB, foods []Food) (int, error) {
 	}
 	defer tx.Rollback()
 
-	stmt, err := tx.Prepare("INSERT INTO foods (name, shop_name, canteen_name, price, taste, category) VALUES (?, ?, ?, ?, ?, ?)")
+	stmt, err := tx.Prepare("INSERT INTO foods (name, shop_name, canteen_name, school_id, price, taste, category) VALUES (?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		return 0, err
 	}
@@ -56,7 +63,7 @@ func CreateFoodsBatch(db *sqlx.DB, foods []Food) (int, error) {
 
 	inserted := 0
 	for _, f := range foods {
-		_, err := stmt.Exec(f.Name, f.ShopName, f.CanteenName, f.Price, f.Taste, f.Category)
+		_, err := stmt.Exec(f.Name, f.ShopName, f.CanteenName, f.SchoolID, f.Price, f.Taste, f.Category)
 		if err != nil {
 			continue
 		}
