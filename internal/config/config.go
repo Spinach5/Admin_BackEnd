@@ -3,6 +3,7 @@ package config
 import (
 	"log"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -17,7 +18,7 @@ type Config struct {
 	DBName         string
 	JWTSecret      string
 	JWTExpireHours string
-	FrontendURL    string
+	FrontendURLs   []string // 改为切片，支持多个前端源
 }
 
 func Load() *Config {
@@ -34,13 +35,25 @@ func Load() *Config {
 		DBName:         getEnv("DB_NAME", "dbname"),
 		JWTSecret:      getEnv("JWT_SECRET", "default-secret"),
 		JWTExpireHours: getEnv("JWT_EXPIRE_HOURS", "24"),
-		FrontendURL:    getEnv("FRONTEND_URL", "http://localhost:5173"),
+		FrontendURLs:   getEnvAsSlice("FRONTEND_URLS", []string{}), // 调用切片解析函数
 	}
 }
 
 func getEnv(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
+	}
+	return fallback
+}
+
+// getEnvAsSlice 读取环境变量中的逗号分隔值，返回去除空格的字符串切片
+func getEnvAsSlice(key string, fallback []string) []string {
+	if v := os.Getenv(key); v != "" {
+		parts := strings.Split(v, ",")
+		for i, p := range parts {
+			parts[i] = strings.TrimSpace(p)
+		}
+		return parts
 	}
 	return fallback
 }
