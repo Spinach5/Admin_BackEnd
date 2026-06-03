@@ -29,13 +29,13 @@ func StudentRegister(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
-		existing, err := models.GetUserByStuID(database.DB, req.StuID)
+		_, err := models.GetUserByStuID(database.DB, req.StuID)
 		if err != nil && err != sql.ErrNoRows {
 			log.Printf("查询用户失败: %v", err)
 			dto.InternalError(c, "服务器错误")
 			return
 		}
-		if existing != nil {
+		if err == nil {
 			dto.BadRequest(c, "该学号已注册")
 			return
 		}

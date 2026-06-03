@@ -60,7 +60,10 @@ func GetUserByStuIDWithPassword(db *sqlx.DB, stuID string) (*User, error) {
 		"SELECT id, stuId, nickName, schoolId, password_hash, createdAt, isDeleted FROM users WHERE stuId = ? AND isDeleted = 0",
 		stuID,
 	)
-	return &user, err
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
 }
 
 func UpdateUser(db *sqlx.DB, u *User) error {
