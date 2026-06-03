@@ -104,18 +104,36 @@ func main() {
 			authorized.POST("/excel/preview", handlers.PreviewExcel())
 		}
 
-		// V1 普通用户接口
+		// V1 学生接口 (JWT)
 		v1 := r.Group("/api/v1")
-		v1.Use(middleware.V1Auth())
 		{
-			v1.POST("/foods", handlers.V1GetFoods())
-			v1.POST("/shops", handlers.V1GetShops())
-			v1.POST("/affairs", handlers.V1GetAffairs())
-			v1.POST("/books", handlers.V1GetBooks())
-			v1.POST("/books/add", handlers.V1AddBook())
-			v1.POST("/books/delete", handlers.V1DeleteBook())
+			v1.POST("/auth/register", handlers.StudentRegister(cfg))
+			v1.POST("/auth/login", handlers.StudentLogin(cfg))
+
+			v1Auth := v1.Group("")
+			v1Auth.Use(middleware.StudentAuth(cfg))
+			{
+				v1Auth.GET("/auth/me", handlers.StudentMe())
+				v1Auth.GET("/books", handlers.V1GetBooks())
+				v1Auth.GET("/books/mine", handlers.V1GetMyBooks())
+				v1Auth.GET("/books/:id", handlers.V1GetBookByID())
+				v1Auth.POST("/books", handlers.V1CreateBook())
+				v1Auth.PUT("/books/:id", handlers.V1UpdateBook())
+				v1Auth.DELETE("/books/:id", handlers.V1DeleteBook())
+			}
+		}
+
+		// V1 旧接口 (body-param 认证，仅保留 foods/shops/affairs)
+		v1Old := r.Group("/api/v1")
+		v1Old.Use(middleware.V1Auth())
+		{
+			v1Old.POST("/foods", handlers.V1GetFoods())
+			v1Old.POST("/shops", handlers.V1GetShops())
+			v1Old.POST("/affairs", handlers.V1GetAffairs())
 		}
 	}
+
+	r.Static("/uploads", "./uploads")
 
 	log.Printf("服务器运行在：http://localhost:%s", cfg.Port)
 	if err := r.Run(":" + cfg.Port); err != nil {

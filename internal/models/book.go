@@ -78,3 +78,21 @@ func SoftDeleteBookByUser(db *sqlx.DB, bookID, userID int) error {
 	}
 	return nil
 }
+
+func GetBooksByCategory(db *sqlx.DB, category string) ([]BookWithUser, error) {
+	books := make([]BookWithUser, 0)
+	err := db.Select(&books, `SELECT b.*, u.nickName, u.stuId FROM book b
+		LEFT JOIN users u ON b.user_id = u.id AND u.isDeleted = 0
+		WHERE b.category = ? AND b.status = 'active'
+		ORDER BY b.book_id DESC`, category)
+	return books, err
+}
+
+func GetBooksByUser(db *sqlx.DB, userID int) ([]BookWithUser, error) {
+	books := make([]BookWithUser, 0)
+	err := db.Select(&books, `SELECT b.*, u.nickName, u.stuId FROM book b
+		LEFT JOIN users u ON b.user_id = u.id AND u.isDeleted = 0
+		WHERE b.user_id = ?
+		ORDER BY b.book_id DESC`, userID)
+	return books, err
+}
