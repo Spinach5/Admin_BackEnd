@@ -60,6 +60,18 @@ func CreateUserWithPassword(db *sqlx.DB, u *User) error {
 	return nil
 }
 
+func GetUserByStuIDAndSchoolIDWithPassword(db *sqlx.DB, stuID, schoolID string) (*User, error) {
+	var user User
+	err := db.Get(&user,
+		"SELECT id, stuId, nickName, schoolId, password_hash, createdAt, isDeleted FROM users WHERE stuId = ? AND schoolId = ? AND isDeleted = 0",
+		stuID, schoolID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
 func GetUserByStuIDWithPassword(db *sqlx.DB, stuID string) (*User, error) {
 	var user User
 	err := db.Get(&user,

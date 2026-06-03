@@ -156,6 +156,7 @@ type V1DeleteBookRequest struct {
 type StudentLoginRequest struct {
 	StuID    string `json:"stuId" binding:"required"`
 	Password string `json:"password" binding:"required"`
+	SchoolID string `json:"schoolId" binding:"required"`
 }
 
 type StudentRegisterRequest struct {

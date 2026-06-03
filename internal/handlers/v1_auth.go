@@ -84,13 +84,13 @@ func StudentLogin(cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req dto.StudentLoginRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			dto.BadRequest(c, "请填写学号和密码")
+			dto.BadRequest(c, "请填写学号、密码和学校")
 			return
 		}
 
-		user, err := models.GetUserByStuIDWithPassword(database.DB, req.StuID)
+		user, err := models.GetUserByStuIDAndSchoolIDWithPassword(database.DB, req.StuID, req.SchoolID)
 		if err == sql.ErrNoRows {
-			dto.Error(c, 200, "学号未注册")
+			dto.Error(c, 200, "学号未注册或学校不匹配")
 			return
 		}
 		if err != nil {
