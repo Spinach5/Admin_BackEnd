@@ -118,6 +118,7 @@ func main() {
 			stuId VARCHAR(50) NOT NULL COMMENT '学号，唯一标识',
 			nickName VARCHAR(100) NOT NULL COMMENT '昵称',
 			schoolId VARCHAR(50) NOT NULL COMMENT '学校代码，关联学校信息表',
+			password_hash VARCHAR(255) NOT NULL DEFAULT '' COMMENT '密码哈希',
 			createdAt DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
 			isDeleted TINYINT(1) UNSIGNED DEFAULT 0 COMMENT '软删除标记（0-未删除，1-已删除）'
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4

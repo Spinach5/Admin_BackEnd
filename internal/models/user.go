@@ -7,6 +7,8 @@ type User struct {
 	StuID     string `db:"stuId" json:"stuId"`
 	NickName  string `db:"nickName" json:"nickName"`
 	SchoolID  string `db:"schoolId" json:"schoolId"`
+	// PasswordHash is intentionally omitted from non-auth queries (GetAllUsers, GetUserByID, etc.).
+	// Only auth-specific functions (GetUserByStuIDWithPassword, CreateUserWithPassword) include it.
 	PasswordHash string `db:"password_hash" json:"-"`
 	CreatedAt string `db:"createdAt" json:"createdAt"`
 	IsDeleted int    `db:"isDeleted" json:"isDeleted"`
@@ -44,7 +46,10 @@ func CreateUserWithPassword(db *sqlx.DB, u *User) error {
 	if err != nil {
 		return err
 	}
-	id, _ := result.LastInsertId()
+	id, err := result.LastInsertId()
+	if err != nil {
+		return err
+	}
 	u.ID = int(id)
 	return nil
 }
