@@ -152,3 +152,15 @@ type V1AddBookRequest struct {
 type V1DeleteBookRequest struct {
 	BookID int `json:"book_id" binding:"required"`
 }
+
+type StudentLoginRequest struct {
+	StuID    string `json:"stuId" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+type StudentRegisterRequest struct {
+	StuID    string `json:"stuId" binding:"required"`
+	Password string `json:"password" binding:"required"`
+	NickName string `json:"nickName" binding:"required"`
+	SchoolID string `json:"schoolId" binding:"required"`
+}
