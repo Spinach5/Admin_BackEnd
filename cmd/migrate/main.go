@@ -124,6 +124,14 @@ func main() {
 	`)
 	log.Println("  ✓ users")
 
+	// 添加 password_hash 列（兼容旧表）
+	var colCount int
+	appDB.Get(&colCount, "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'password_hash'")
+	if colCount == 0 {
+		appDB.MustExec("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NOT NULL DEFAULT ''")
+		log.Println("  ✓ users.password_hash 列已添加")
+	}
+
 	// 书籍表
 	appDB.MustExec(`
 		CREATE TABLE IF NOT EXISTS book (

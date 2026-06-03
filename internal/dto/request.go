@@ -19,8 +19,14 @@ type CreateAdminRequest struct {
 type UpdateAdminRequest struct {
 	Account  string `json:"account" binding:"required" validate:"required,min=2"`
 	Password string `json:"password" binding:"omitempty" validate:"omitempty,min=8"`
-	IsSuper  int    `json:"is_super" binding:"required" validate:"oneof=0 1"`
-	IsActive int    `json:"is_active" binding:"required" validate:"oneof=0 1"`
+	IsSuper  *int   `json:"is_super" binding:"required"`
+	IsActive *int   `json:"is_active" binding:"required"`
+}
+
+type UpdateAdminInfoRequest struct {
+	Account  string `json:"account" binding:"required" validate:"required,min=2"`
+	IsSuper  *int   `json:"is_super" binding:"required"`
+	IsActive *int   `json:"is_active" binding:"required"`
 }
 
 type CreateShopRequest struct {

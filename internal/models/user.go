@@ -7,6 +7,7 @@ type User struct {
 	StuID     string `db:"stuId" json:"stuId"`
 	NickName  string `db:"nickName" json:"nickName"`
 	SchoolID  string `db:"schoolId" json:"schoolId"`
+	PasswordHash string `db:"password_hash" json:"-"`
 	CreatedAt string `db:"createdAt" json:"createdAt"`
 	IsDeleted int    `db:"isDeleted" json:"isDeleted"`
 }
@@ -33,6 +34,28 @@ func CreateUser(db *sqlx.DB, u *User) error {
 	_, err := db.Exec("INSERT INTO users (stuId, nickName, schoolId) VALUES (?, ?, ?)",
 		u.StuID, u.NickName, u.SchoolID)
 	return err
+}
+
+func CreateUserWithPassword(db *sqlx.DB, u *User) error {
+	result, err := db.Exec(
+		"INSERT INTO users (stuId, nickName, schoolId, password_hash) VALUES (?, ?, ?, ?)",
+		u.StuID, u.NickName, u.SchoolID, u.PasswordHash,
+	)
+	if err != nil {
+		return err
+	}
+	id, _ := result.LastInsertId()
+	u.ID = int(id)
+	return nil
+}
+
+func GetUserByStuIDWithPassword(db *sqlx.DB, stuID string) (*User, error) {
+	var user User
+	err := db.Get(&user,
+		"SELECT id, stuId, nickName, schoolId, password_hash, createdAt, isDeleted FROM users WHERE stuId = ? AND isDeleted = 0",
+		stuID,
+	)
+	return &user, err
 }
 
 func UpdateUser(db *sqlx.DB, u *User) error {

@@ -55,6 +55,7 @@ func main() {
 				admin.GET("/admins", handlers.GetAdmins())
 				admin.POST("/admins", handlers.CreateAdmin())
 				admin.PUT("/admins/:id", handlers.UpdateAdmin())
+				admin.PUT("/admins/:id/info", handlers.UpdateAdminInfo())
 				admin.DELETE("/admins/:id", handlers.DeleteAdmin())
 			}
 

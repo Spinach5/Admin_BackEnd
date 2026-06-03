@@ -120,7 +120,7 @@ func UpdateAdmin() gin.HandlerFunc {
 
 		// 不能修改自己的超级管理员状态
 		currentID := middleware.GetCurrentUserID(c)
-		if id == currentID && req.IsSuper != middleware.GetCurrentIsSuper(c) {
+		if id == currentID && *req.IsSuper != middleware.GetCurrentIsSuper(c) {
 			dto.BadRequest(c, "不能修改自己的管理员权限")
 			return
 		}
@@ -135,13 +135,44 @@ func UpdateAdmin() gin.HandlerFunc {
 			hashed = string(h)
 		}
 
-		if err := models.UpdateAdmin(database.DB, id, req.Account, hashed, req.IsSuper, req.IsActive); err != nil {
+		if err := models.UpdateAdmin(database.DB, id, req.Account, hashed, *req.IsSuper, *req.IsActive); err != nil {
 			log.Printf("更新用户失败: %v", err)
 			dto.InternalError(c, "更新用户失败")
 			return
 		}
 
 		dto.SuccessMessage(c, "更新用户成功")
+	}
+}
+
+// UpdateAdminInfo 更新管理员信息 (不含密码)
+func UpdateAdminInfo() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			dto.BadRequest(c, "无效的用户ID")
+			return
+		}
+
+		var req dto.UpdateAdminInfoRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			dto.BadRequest(c, "缺少必要参数")
+			return
+		}
+
+		currentID := middleware.GetCurrentUserID(c)
+		if id == currentID && *req.IsSuper != middleware.GetCurrentIsSuper(c) {
+			dto.BadRequest(c, "不能修改自己的管理员权限")
+			return
+		}
+
+		if err := models.UpdateAdmin(database.DB, id, req.Account, "", *req.IsSuper, *req.IsActive); err != nil {
+			log.Printf("更新管理员失败: %v", err)
+			dto.InternalError(c, "更新管理员失败")
+			return
+		}
+
+		dto.SuccessMessage(c, "更新管理员成功")
 	}
 }
 
