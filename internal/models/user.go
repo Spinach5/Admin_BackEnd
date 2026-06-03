@@ -32,6 +32,12 @@ func GetUserByStuID(db *sqlx.DB, stuID string) (*User, error) {
 	return &user, err
 }
 
+func GetUserByStuIDAndSchoolID(db *sqlx.DB, stuID, schoolID string) (*User, error) {
+	var user User
+	err := db.Get(&user, "SELECT id, stuId, nickName, schoolId, createdAt, isDeleted FROM users WHERE stuId = ? AND schoolId = ? AND isDeleted = 0", stuID, schoolID)
+	return &user, err
+}
+
 func CreateUser(db *sqlx.DB, u *User) error {
 	_, err := db.Exec("INSERT INTO users (stuId, nickName, schoolId) VALUES (?, ?, ?)",
 		u.StuID, u.NickName, u.SchoolID)
