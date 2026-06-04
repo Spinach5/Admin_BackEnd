@@ -2,3 +2,4 @@
 /dist
 .env.prod
 .env.dev
+/uploads

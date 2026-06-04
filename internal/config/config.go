@@ -18,7 +18,8 @@ type Config struct {
 	DBName         string
 	JWTSecret      string
 	JWTExpireHours string
-	FrontendURLs   []string // 改为切片，支持多个前端源
+	FrontendURLs   []string
+	UploadDir      string
 }
 
 func Load() *Config {
@@ -35,7 +36,8 @@ func Load() *Config {
 		DBName:         getEnv("DB_NAME", "dbname"),
 		JWTSecret:      getEnv("JWT_SECRET", "default-secret"),
 		JWTExpireHours: getEnv("JWT_EXPIRE_HOURS", "24"),
-		FrontendURLs:   getEnvAsSlice("FRONTEND_URLS", []string{}), // 调用切片解析函数
+		FrontendURLs:   getEnvAsSlice("FRONTEND_URLS", "FRONTEND_URL"),
+		UploadDir:      getEnv("UPLOAD_DIR", "./uploads"),
 	}
 }
 
@@ -46,8 +48,8 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
-// getEnvAsSlice 读取环境变量中的逗号分隔值，返回去除空格的字符串切片
-func getEnvAsSlice(key string, fallback []string) []string {
+// getEnvAsSlice 读取环境变量中的逗号分隔值；若主 key 为空则尝试 fallbackKey
+func getEnvAsSlice(key, fallbackKey string) []string {
 	if v := os.Getenv(key); v != "" {
 		parts := strings.Split(v, ",")
 		for i, p := range parts {
@@ -55,5 +57,8 @@ func getEnvAsSlice(key string, fallback []string) []string {
 		}
 		return parts
 	}
-	return fallback
+	if v := os.Getenv(fallbackKey); v != "" {
+		return []string{v}
+	}
+	return nil
 }

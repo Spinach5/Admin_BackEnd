@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"web-backend/internal/config"
 	"web-backend/internal/database"
@@ -18,6 +19,12 @@ func main() {
 
 	database.Connect(cfg)
 	defer database.Close()
+
+	if _, err := os.Stat(cfg.UploadDir); os.IsNotExist(err) {
+		if err := os.MkdirAll(cfg.UploadDir, 0755); err != nil {
+			log.Fatalf("创建上传目录失败 %s: %v", cfg.UploadDir, err)
+		}
+	}
 
 	resetLoginStatus()
 
@@ -68,6 +75,7 @@ func main() {
 			authorized.DELETE("/users/:id/hard", handlers.HardDeleteUser())
 
 			// 书籍管理
+			authorized.GET("/books/categories", handlers.GetBookCategories())
 			authorized.GET("/books", handlers.GetBooks())
 			authorized.GET("/books/:id", handlers.GetBookByID())
 			authorized.POST("/books", handlers.CreateBook())
@@ -114,6 +122,7 @@ func main() {
 			v1Auth.Use(middleware.StudentAuth(cfg))
 			{
 				v1Auth.GET("/auth/me", handlers.StudentMe())
+				v1Auth.GET("/books/categories", handlers.GetBookCategories())
 				v1Auth.GET("/books", handlers.V1GetBooks())
 				v1Auth.GET("/books/mine", handlers.V1GetMyBooks())
 				v1Auth.GET("/books/:id", handlers.V1GetBookByID())
@@ -121,19 +130,19 @@ func main() {
 				v1Auth.PUT("/books/:id", handlers.V1UpdateBook())
 				v1Auth.DELETE("/books/:id", handlers.V1DeleteBook())
 			}
-		}
 
-		// V1 旧接口 (body-param 认证，仅保留 foods/shops/affairs)
-		v1Old := r.Group("/api/v1")
-		v1Old.Use(middleware.V1Auth())
-		{
-			v1Old.POST("/foods", handlers.V1GetFoods())
-			v1Old.POST("/shops", handlers.V1GetShops())
-			v1Old.POST("/affairs", handlers.V1GetAffairs())
+			// body-param 认证的旧接口 (foods/shops/affairs)
+			v1Old := v1.Group("")
+			v1Old.Use(middleware.V1Auth())
+			{
+				v1Old.POST("/foods", handlers.V1GetFoods())
+				v1Old.POST("/shops", handlers.V1GetShops())
+				v1Old.POST("/affairs", handlers.V1GetAffairs())
+			}
 		}
 	}
 
-	r.Static("/uploads", "./uploads")
+	r.Static("/uploads", cfg.UploadDir)
 
 	log.Printf("服务器运行在：http://localhost:%s", cfg.Port)
 	if err := r.Run(":" + cfg.Port); err != nil {

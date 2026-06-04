@@ -28,16 +28,15 @@ type BookWithUser struct {
 
 func GetAllBooks(db *sqlx.DB) ([]BookWithUser, error) {
 	books := make([]BookWithUser, 0)
-	err := db.Select(&books, `SELECT b.*, u.nickName, u.stuId FROM book b
+	err := db.Select(&books, `SELECT b.*, COALESCE(u.nickName, '') AS nickName, COALESCE(u.stuId, '') AS stuId FROM book b
 		LEFT JOIN users u ON b.user_id = u.id AND u.isDeleted = 0
-		WHERE b.status = 'active'
 		ORDER BY b.book_id`)
 	return books, err
 }
 
 func GetBookByID(db *sqlx.DB, id int) (*BookWithUser, error) {
 	var book BookWithUser
-	err := db.Get(&book, `SELECT b.*, u.nickName, u.stuId FROM book b
+	err := db.Get(&book, `SELECT b.*, COALESCE(u.nickName, '') AS nickName, COALESCE(u.stuId, '') AS stuId FROM book b
 		LEFT JOIN users u ON b.user_id = u.id AND u.isDeleted = 0
 		WHERE b.book_id = ?`, id)
 	return &book, err
@@ -80,9 +79,18 @@ func SoftDeleteBookByUser(db *sqlx.DB, bookID, userID int) error {
 	return nil
 }
 
+func GetAllActiveBooks(db *sqlx.DB) ([]BookWithUser, error) {
+	books := make([]BookWithUser, 0)
+	err := db.Select(&books, `SELECT b.*, COALESCE(u.nickName, '') AS nickName, COALESCE(u.stuId, '') AS stuId FROM book b
+		LEFT JOIN users u ON b.user_id = u.id AND u.isDeleted = 0
+		WHERE b.status = 'active'
+		ORDER BY b.book_id`)
+	return books, err
+}
+
 func GetBooksByCategory(db *sqlx.DB, category string) ([]BookWithUser, error) {
 	books := make([]BookWithUser, 0)
-	err := db.Select(&books, `SELECT b.*, u.nickName, u.stuId FROM book b
+	err := db.Select(&books, `SELECT b.*, COALESCE(u.nickName, '') AS nickName, COALESCE(u.stuId, '') AS stuId FROM book b
 		LEFT JOIN users u ON b.user_id = u.id AND u.isDeleted = 0
 		WHERE b.category = ? AND b.status = 'active'
 		ORDER BY b.book_id DESC`, category)
@@ -91,7 +99,7 @@ func GetBooksByCategory(db *sqlx.DB, category string) ([]BookWithUser, error) {
 
 func GetBooksByUser(db *sqlx.DB, userID int) ([]BookWithUser, error) {
 	books := make([]BookWithUser, 0)
-	err := db.Select(&books, `SELECT b.*, u.nickName, u.stuId FROM book b
+	err := db.Select(&books, `SELECT b.*, COALESCE(u.nickName, '') AS nickName, COALESCE(u.stuId, '') AS stuId FROM book b
 		LEFT JOIN users u ON b.user_id = u.id AND u.isDeleted = 0
 		WHERE b.user_id = ? AND b.status = 'active'
 		ORDER BY b.book_id DESC`, userID)

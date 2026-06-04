@@ -111,28 +111,6 @@ type UpdateUserRequest struct {
 	SchoolID string `json:"schoolId" binding:"required"`
 }
 
-type CreateBookRequest struct {
-	Title    string  `json:"title" binding:"required"`
-	Category *string `json:"category"`
-	ImageURL *string `json:"image_url"`
-	Price    *string `json:"price"`
-	ISBN     *string `json:"isbn"`
-	Contact  *string `json:"contact"`
-	UserID   int     `json:"user_id" binding:"required"`
-	Status   string  `json:"status"`
-}
-
-type UpdateBookRequest struct {
-	Title    string  `json:"title" binding:"required"`
-	Category *string `json:"category"`
-	ImageURL *string `json:"image_url"`
-	Price    *string `json:"price"`
-	ISBN     *string `json:"isbn"`
-	Contact  *string `json:"contact"`
-	UserID   *int    `json:"user_id"`
-	Status   *string `json:"status"`
-}
-
 // V1 普通用户请求
 type V1BaseRequest struct {
 	ID       int    `json:"id" binding:"required"`

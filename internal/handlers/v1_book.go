@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"mime/multipart"
+	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -25,7 +27,7 @@ func V1GetBooks() gin.HandlerFunc {
 		if category != "" {
 			books, err = models.GetBooksByCategory(database.DB, category)
 		} else {
-			books, err = models.GetAllBooks(database.DB)
+			books, err = models.GetAllActiveBooks(database.DB)
 		}
 		if err != nil {
 			log.Printf("V1获取书籍列表失败: %v", err)
@@ -91,15 +93,23 @@ func V1CreateBook() gin.HandlerFunc {
 			return
 		}
 
+		if category != "" && !bookCategories[category] {
+			dto.BadRequest(c, "无效的书籍种类")
+			return
+		}
+
 		var imageURL string
 		file, err := c.FormFile("image")
 		if err == nil {
 			url, err := saveUploadedImage(c, file)
 			if err != nil {
+				log.Printf("V1图片上传失败: %v", err)
 				dto.BadRequest(c, err.Error())
 				return
 			}
 			imageURL = url
+		} else if err != http.ErrMissingFile {
+			log.Printf("V1读取上传文件失败: %v", err)
 		}
 
 		book := &models.Book{
@@ -148,15 +158,28 @@ func V1UpdateBook() gin.HandlerFunc {
 			return
 		}
 
+		category := c.PostForm("category")
+		if category != "" && !bookCategories[category] {
+			dto.BadRequest(c, "无效的书籍种类")
+			return
+		}
+
 		imageURL := ptrStrVal(existing.ImageURL)
+		if c.PostForm("delete_image") == "true" {
+			deleteImageFile(imageURL)
+			imageURL = ""
+		}
 		file, err := c.FormFile("image")
 		if err == nil {
 			url, err := saveUploadedImage(c, file)
 			if err != nil {
+				log.Printf("V1图片上传失败: %v", err)
 				dto.BadRequest(c, err.Error())
 				return
 			}
 			imageURL = url
+		} else if err != http.ErrMissingFile {
+			log.Printf("V1读取上传文件失败: %v", err)
 		}
 
 		book := &models.Book{
@@ -209,25 +232,19 @@ func saveUploadedImage(c *gin.Context, file *multipart.FileHeader) (string, erro
 		return "", fmt.Errorf("图片大小不能超过5MB")
 	}
 
+	dir := uploadDir()
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return "", fmt.Errorf("创建上传目录失败: %w", err)
+		}
+	}
+
 	filename := uuid.New().String() + ext
-	dst := filepath.Join("uploads", filename)
+	dst := filepath.Join(dir, filename)
 	if err := c.SaveUploadedFile(file, dst); err != nil {
-		return "", fmt.Errorf("图片上传失败")
+		return "", fmt.Errorf("保存文件失败: %w", err)
 	}
 
 	return "/uploads/" + filename, nil
 }
 
-func strPtr(s string) *string {
-	if s == "" {
-		return nil
-	}
-	return &s
-}
-
-func ptrStrVal(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
-}
