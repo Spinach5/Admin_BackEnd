@@ -18,6 +18,7 @@ func GetClubs() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		clubs, err := models.GetAllClubs(database.DB)
 		if err != nil {
+			log.Printf("获取社团列表失败: %v", err)
 			dto.InternalError(c, "获取社团列表失败")
 			return
 		}
@@ -36,6 +37,7 @@ func GetClubByID() gin.HandlerFunc {
 
 		club, err := models.GetClubByID(database.DB, id)
 		if err != nil {
+			log.Printf("获取社团详情失败 id=%d: %v", id, err)
 			dto.Error(c, 200, "社团不存在")
 			return
 		}
@@ -134,6 +136,7 @@ func V1GetClubs() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		clubs, err := models.GetAllClubs(database.DB)
 		if err != nil {
+			log.Printf("获取社团列表失败: %v", err)
 			dto.InternalError(c, "获取社团列表失败")
 			return
 		}
@@ -152,6 +155,7 @@ func V1GetClubByID() gin.HandlerFunc {
 
 		club, err := models.GetClubByID(database.DB, id)
 		if err != nil {
+			log.Printf("获取社团详情失败 id=%d: %v", id, err)
 			dto.Error(c, 200, "社团不存在")
 			return
 		}
