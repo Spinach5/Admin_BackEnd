@@ -65,3 +65,22 @@ func SetAdminActive(db *sqlx.DB, account string, active int) error {
 	_, err := db.Exec("UPDATE admins SET is_active = ? WHERE account = ?", active, account)
 	return err
 }
+
+func UpdateAdminLastActive(db *sqlx.DB, account string) error {
+	_, err := db.Exec("UPDATE admins SET last_active_at = NOW() WHERE account = ?", account)
+	return err
+}
+
+func GetAdminLastActive(db *sqlx.DB, account string) (string, error) {
+	var lastActive string
+	err := db.Get(&lastActive, "SELECT last_active_at FROM admins WHERE account = ?", account)
+	return lastActive, err
+}
+
+func CleanStaleAdminSessions(db *sqlx.DB, timeoutMinutes int) error {
+	_, err := db.Exec(
+		"UPDATE admins SET is_active = 0 WHERE is_active = 1 AND last_active_at IS NOT NULL AND last_active_at < DATE_SUB(NOW(), INTERVAL ? MINUTE)",
+		timeoutMinutes,
+	)
+	return err
+}

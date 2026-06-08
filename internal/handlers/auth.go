@@ -56,6 +56,7 @@ func Login(cfg *config.Config) gin.HandlerFunc {
 		}
 
 		models.SetAdminActive(database.DB, user.Account, 1)
+		models.UpdateAdminLastActive(database.DB, user.Account)
 
 		expireHours := 24
 		if v := cfg.JWTExpireHours; v != "" {
@@ -180,4 +181,26 @@ func parseHours(s string) (int, error) {
 		h = h*10 + int(c-'0')
 	}
 	return h, nil
+}
+
+// Heartbeat 管理员心跳检测，更新最后活跃时间
+func Heartbeat() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		account := middleware.GetCurrentAccount(c)
+		if account == "" {
+			dto.Unauthorized(c, "未找到用户信息")
+			return
+		}
+
+		if err := models.UpdateAdminLastActive(database.DB, account); err != nil {
+			log.Printf("更新心跳失败 account=%s: %v", account, err)
+			dto.InternalError(c, "心跳更新失败")
+			return
+		}
+
+		// 同时确保 is_active 为 1
+		models.SetAdminActive(database.DB, account, 1)
+
+		dto.SuccessMessage(c, "ok")
+	}
 }

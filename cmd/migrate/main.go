@@ -56,6 +56,14 @@ func main() {
 	`)
 	log.Println("  ✓ admins")
 
+		// 添加 last_active_at 列（兼容旧表）
+		var adminsColCount int
+		appDB.Get(&adminsColCount, "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'admins' AND COLUMN_NAME = 'last_active_at'")
+		if adminsColCount == 0 {
+			appDB.MustExec("ALTER TABLE admins ADD COLUMN last_active_at DATETIME DEFAULT NULL")
+			log.Println("  ✓ admins.last_active_at 列已添加")
+		}
+
 	// 餐厅表
 	appDB.MustExec(`
 		CREATE TABLE IF NOT EXISTS shops (
@@ -132,6 +140,14 @@ func main() {
 		appDB.MustExec("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NOT NULL DEFAULT ''")
 		log.Println("  ✓ users.password_hash 列已添加")
 	}
+
+		// 添加 last_active_at 列（兼容旧表）
+		var usersLastActiveColCount int
+		appDB.Get(&usersLastActiveColCount, "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'last_active_at'")
+		if usersLastActiveColCount == 0 {
+			appDB.MustExec("ALTER TABLE users ADD COLUMN last_active_at DATETIME DEFAULT NULL")
+			log.Println("  ✓ users.last_active_at 列已添加")
+		}
 
 	// 书籍表
 	appDB.MustExec(`

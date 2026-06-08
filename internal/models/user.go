@@ -99,3 +99,14 @@ func HardDeleteUser(db *sqlx.DB, id int) error {
 	_, err := db.Exec("DELETE FROM users WHERE id = ?", id)
 	return err
 }
+
+func UpdateUserLastActive(db *sqlx.DB, userID int) error {
+	_, err := db.Exec("UPDATE users SET last_active_at = NOW() WHERE id = ?", userID)
+	return err
+}
+
+func GetUserLastActive(db *sqlx.DB, userID int) (string, error) {
+	var lastActive string
+	err := db.Get(&lastActive, "SELECT last_active_at FROM users WHERE id = ? AND isDeleted = 0", userID)
+	return lastActive, err
+}

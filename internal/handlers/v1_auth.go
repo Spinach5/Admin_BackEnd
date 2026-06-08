@@ -73,6 +73,8 @@ func StudentRegister(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
+		models.UpdateUserLastActive(database.DB, user.ID)
+
 		expireHours := parseExpireHours(cfg)
 		token, err := services.GenerateToken(user.ID, "", 0, cfg.JWTSecret, expireHours)
 		if err != nil {
@@ -116,6 +118,8 @@ func StudentLogin(cfg *config.Config) gin.HandlerFunc {
 			dto.Error(c, 200, "密码错误")
 			return
 		}
+
+		models.UpdateUserLastActive(database.DB, user.ID)
 
 		expireHours := parseExpireHours(cfg)
 		token, err := services.GenerateToken(user.ID, "", 0, cfg.JWTSecret, expireHours)
@@ -192,5 +196,24 @@ func CheckUser() gin.HandlerFunc {
 			"schoolId": schoolID,
 			"exists":   exists,
 		})
+	}
+}
+
+// StudentHeartbeat 学生心跳检测，更新最后活跃时间
+func StudentHeartbeat() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := middleware.GetStudentUserID(c)
+		if userID == 0 {
+			dto.Unauthorized(c, "未找到用户信息")
+			return
+		}
+
+		if err := models.UpdateUserLastActive(database.DB, userID); err != nil {
+			log.Printf("更新学生心跳失败 userId=%d: %v", userID, err)
+			dto.InternalError(c, "心跳更新失败")
+			return
+		}
+
+		dto.SuccessMessage(c, "ok")
 	}
 }

@@ -3,11 +3,13 @@ package main
 import (
 	"log"
 	"os"
+	"time"
 
 	"web-backend/internal/config"
 	"web-backend/internal/database"
 	"web-backend/internal/handlers"
 	"web-backend/internal/middleware"
+	"web-backend/internal/models"
 
 	"github.com/gin-gonic/gin"
 )
@@ -51,6 +53,7 @@ func main() {
 			authorized.POST("/auth/logout", handlers.Logout())
 			authorized.GET("/auth/me", handlers.GetMe())
 			authorized.PUT("/auth/change-password", handlers.ChangePassword())
+			authorized.POST("/auth/heartbeat", handlers.Heartbeat())
 
 			// 模块列表
 			authorized.GET("/modules", handlers.GetModules())
@@ -123,6 +126,7 @@ func main() {
 			v1Auth.Use(middleware.StudentAuth(cfg))
 			{
 				v1Auth.GET("/auth/me", handlers.StudentMe())
+				v1Auth.POST("/auth/heartbeat", handlers.StudentHeartbeat())
 				v1Auth.GET("/books/categories", handlers.GetBookCategories())
 				v1Auth.GET("/books", handlers.V1GetBooks())
 				v1Auth.GET("/books/mine", handlers.V1GetMyBooks())
@@ -144,6 +148,16 @@ func main() {
 	}
 
 	r.Static("/uploads", cfg.UploadDir)
+
+	// 后台定时清理过期管理员会话
+	go func() {
+		for {
+			time.Sleep(30 * time.Second)
+			if err := models.CleanStaleAdminSessions(database.DB, 5); err != nil {
+				log.Printf("清理过期会话失败: %v", err)
+			}
+		}
+	}()
 
 	log.Printf("服务器运行在：http://localhost:%s", cfg.Port)
 	if err := r.Run(":" + cfg.Port); err != nil {
