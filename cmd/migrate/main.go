@@ -149,6 +149,22 @@ func main() {
 			log.Println("  ✓ users.last_active_at 列已添加")
 		}
 
+
+		// 社团表
+		appDB.MustExec(`
+			CREATE TABLE IF NOT EXISTS clubs (
+				id INT(11) AUTO_INCREMENT PRIMARY KEY,
+				name VARCHAR(100) NOT NULL UNIQUE,
+				introduction TEXT,
+				activities TEXT,
+				category VARCHAR(50),
+				image_url VARCHAR(100),
+				nature TINYINT(1) DEFAULT 0,
+				contact VARCHAR(100)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+		`)
+		log.Println("  ✓ clubs")
+
 	// 书籍表
 	appDB.MustExec(`
 		CREATE TABLE IF NOT EXISTS book (

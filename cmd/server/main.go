@@ -103,6 +103,13 @@ func main() {
 			authorized.PUT("/affairs/:id", handlers.UpdateAffair())
 			authorized.DELETE("/affairs/:id", handlers.DeleteAffair())
 
+			// 社团管理
+			authorized.GET("/clubs", handlers.GetClubs())
+			authorized.GET("/clubs/:id", handlers.GetClubByID())
+			authorized.POST("/clubs", handlers.CreateClub())
+			authorized.PUT("/clubs/:id", handlers.UpdateClub())
+			authorized.DELETE("/clubs/:id", handlers.DeleteClub())
+
 			// 事务种类管理
 			authorized.GET("/affair-categories", handlers.GetAffairCategories())
 			authorized.POST("/affair-categories", handlers.CreateAffairCategory())
@@ -127,6 +134,8 @@ func main() {
 			{
 				v1Auth.GET("/auth/me", handlers.StudentMe())
 				v1Auth.POST("/auth/heartbeat", handlers.StudentHeartbeat())
+				v1Auth.GET("/clubs", handlers.V1GetClubs())
+				v1Auth.GET("/clubs/:id", handlers.V1GetClubByID())
 				v1Auth.GET("/books/categories", handlers.GetBookCategories())
 				v1Auth.GET("/books", handlers.V1GetBooks())
 				v1Auth.GET("/books/mine", handlers.V1GetMyBooks())

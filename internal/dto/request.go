@@ -143,3 +143,24 @@ type StudentRegisterRequest struct {
 	NickName string `json:"nickName" binding:"required"`
 	SchoolID string `json:"schoolId" binding:"required"`
 }
+
+type CreateClubRequest struct {
+	Name         string `json:"name" binding:"required"`
+	Introduction string `json:"introduction"`
+	Activities   string `json:"activities"`
+	Category     string `json:"category"`
+	ImageURL     string `json:"image_url"`
+	Nature       int    `json:"nature"`
+	Contact      string `json:"contact"`
+}
+
+type UpdateClubRequest struct {
+	ID           int    `json:"id" binding:"required"`
+	Name         string `json:"name" binding:"required"`
+	Introduction string `json:"introduction"`
+	Activities   string `json:"activities"`
+	Category     string `json:"category"`
+	ImageURL     string `json:"image_url"`
+	Nature       int    `json:"nature"`
+	Contact      string `json:"contact"`
+}
