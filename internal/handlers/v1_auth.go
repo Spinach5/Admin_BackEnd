@@ -29,6 +29,19 @@ func StudentRegister(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
+		// 学校白名单校验
+		if req.SchoolID != "hbut" {
+			dto.BadRequest(c, "暂不支持该学校")
+			return
+		}
+
+		// 教务系统凭证验证
+		if err := services.VerifyHbutCredentials(req.StuID, req.Password); err != nil {
+			log.Printf("教务系统验证失败 stuId=%s: %v", req.StuID, err)
+			dto.BadRequest(c, "学号或密码错误")
+			return
+		}
+
 		_, err := models.GetUserByStuIDAndSchoolID(database.DB, req.StuID, req.SchoolID)
 		if err != nil && err != sql.ErrNoRows {
 			log.Printf("查询用户失败: %v", err)
@@ -150,4 +163,34 @@ func parseExpireHours(cfg *config.Config) int {
 		return 24
 	}
 	return h
+}
+
+// CheckUser 检查用户是否存在 (公开接口)
+// @Summary 检查用户是否存在
+// @Description 通过学号和学校代码查询用户是否已注册
+// @Tags 认证
+// @Produce json
+// @Param stuId query string true "学号"
+// @Param schoolId query string true "学校代码"
+// @Success 200 {object} dto.Response
+// @Router /api/v1/auth/check-user [get]
+func CheckUser() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		stuID := c.Query("stuId")
+		schoolID := c.Query("schoolId")
+
+		if stuID == "" || schoolID == "" {
+			dto.BadRequest(c, "请提供 stuId 和 schoolId")
+			return
+		}
+
+		_, err := models.GetUserByStuIDAndSchoolID(database.DB, stuID, schoolID)
+		exists := err == nil
+
+		dto.Success(c, gin.H{
+			"stuId":    stuID,
+			"schoolId": schoolID,
+			"exists":   exists,
+		})
+	}
 }
