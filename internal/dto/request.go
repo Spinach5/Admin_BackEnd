@@ -145,22 +145,22 @@ type StudentRegisterRequest struct {
 }
 
 type CreateClubRequest struct {
-	Name         string `json:"name" binding:"required"`
-	Introduction string `json:"introduction"`
-	Activities   string `json:"activities"`
-	Category     string `json:"category"`
-	ImageURL     string `json:"image_url"`
-	Nature       int    `json:"nature"`
-	Contact      string `json:"contact"`
+	Name         string  `json:"name" binding:"required"`
+	Introduction *string `json:"introduction"`
+	Activities   *string `json:"activities"`
+	Category     *string `json:"category"`
+	ImageURL     *string `json:"image_url"`
+	Nature       int     `json:"nature"`
+	Contact      *string `json:"contact"`
 }
 
 type UpdateClubRequest struct {
-	ID           int    `json:"id"`
-	Name         string `json:"name" binding:"required"`
-	Introduction string `json:"introduction"`
-	Activities   string `json:"activities"`
-	Category     string `json:"category"`
-	ImageURL     string `json:"image_url"`
-	Nature       int    `json:"nature"`
-	Contact      string `json:"contact"`
+	ID           int     `json:"id"`
+	Name         string  `json:"name" binding:"required"`
+	Introduction *string `json:"introduction"`
+	Activities   *string `json:"activities"`
+	Category     *string `json:"category"`
+	ImageURL     *string `json:"image_url"`
+	Nature       int     `json:"nature"`
+	Contact      *string `json:"contact"`
 }
