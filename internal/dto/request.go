@@ -163,6 +163,7 @@ type UpdateClubRequest struct {
 	Activities   *string `json:"activities"`
 	Category     *string `json:"category"`
 	ImageURL     *string `json:"image_url"`
+	SchoolID     string  `json:"schoolId"`
 	Nature       int     `json:"nature"`
 	Contact      *string `json:"contact"`
 	PrincipalID  *int    `json:"principal_id"`

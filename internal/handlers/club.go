@@ -98,6 +98,7 @@ func UpdateClub() gin.HandlerFunc {
 			Activities:   req.Activities,
 			Category:     req.Category,
 			ImageURL:     req.ImageURL,
+			SchoolId:     req.SchoolID,
 			Nature:       req.Nature,
 			Contact:      req.Contact,
 			PrincipalID:  req.PrincipalID,
