@@ -165,6 +165,15 @@ func main() {
 		`)
 		log.Println("  ✓ clubs")
 
+		// 添加 principal_id 列（兼容旧表）
+		var clubsPrincipalColCount int
+		appDB.Get(&clubsPrincipalColCount, "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'clubs' AND COLUMN_NAME = 'principal_id'")
+		if clubsPrincipalColCount == 0 {
+			appDB.MustExec("ALTER TABLE clubs ADD COLUMN principal_id INT(10) UNSIGNED DEFAULT NULL")
+			appDB.MustExec("ALTER TABLE clubs ADD FOREIGN KEY (principal_id) REFERENCES users(id) ON DELETE SET NULL")
+			log.Println("  ✓ clubs.principal_id 列已添加")
+		}
+
 	// 书籍表
 	appDB.MustExec(`
 		CREATE TABLE IF NOT EXISTS book (

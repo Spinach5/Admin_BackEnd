@@ -152,6 +152,7 @@ type CreateClubRequest struct {
 	ImageURL     *string `json:"image_url"`
 	Nature       int     `json:"nature"`
 	Contact      *string `json:"contact"`
+	PrincipalID  *int    `json:"principal_id"`
 }
 
 type UpdateClubRequest struct {
@@ -163,4 +164,5 @@ type UpdateClubRequest struct {
 	ImageURL     *string `json:"image_url"`
 	Nature       int     `json:"nature"`
 	Contact      *string `json:"contact"`
+	PrincipalID  *int    `json:"principal_id"`
 }

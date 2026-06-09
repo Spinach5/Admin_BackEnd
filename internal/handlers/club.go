@@ -62,6 +62,7 @@ func CreateClub() gin.HandlerFunc {
 			ImageURL:     req.ImageURL,
 			Nature:       req.Nature,
 			Contact:      req.Contact,
+			PrincipalID:  req.PrincipalID,
 		}
 
 		if err := models.CreateClub(database.DB, club); err != nil {
@@ -98,6 +99,7 @@ func UpdateClub() gin.HandlerFunc {
 			ImageURL:     req.ImageURL,
 			Nature:       req.Nature,
 			Contact:      req.Contact,
+			PrincipalID:  req.PrincipalID,
 		}
 
 		if err := models.UpdateClub(database.DB, club); err != nil {

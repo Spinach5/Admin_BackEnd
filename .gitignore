@@ -3,5 +3,5 @@
 .env.prod
 .env.dev
 /uploads
-migrate
-server
+/migrate
+/server
