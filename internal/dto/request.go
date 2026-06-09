@@ -155,7 +155,7 @@ type CreateClubRequest struct {
 }
 
 type UpdateClubRequest struct {
-	ID           int    `json:"id" binding:"required"`
+	ID           int    `json:"id"`
 	Name         string `json:"name" binding:"required"`
 	Introduction string `json:"introduction"`
 	Activities   string `json:"activities"`
