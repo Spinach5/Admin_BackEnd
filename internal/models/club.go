@@ -3,14 +3,14 @@ package models
 import "github.com/jmoiron/sqlx"
 
 type Club struct {
-	ID           int    `db:"id" json:"id"`
-	Name         string `db:"name" json:"name"`
-	Introduction string `db:"introduction" json:"introduction"`
-	Activities   string `db:"activities" json:"activities"`
-	Category     string `db:"category" json:"category"`
-	ImageURL     string `db:"image_url" json:"image_url"`
-	Nature       int    `db:"nature" json:"nature"`
-	Contact      string `db:"contact" json:"contact"`
+	ID           int     `db:"id" json:"id"`
+	Name         string  `db:"name" json:"name"`
+	Introduction *string `db:"introduction" json:"introduction"`
+	Activities   *string `db:"activities" json:"activities"`
+	Category     *string `db:"category" json:"category"`
+	ImageURL     *string `db:"image_url" json:"image_url"`
+	Nature       int     `db:"nature" json:"nature"`
+	Contact      *string `db:"contact" json:"contact"`
 }
 
 func GetAllClubs(db *sqlx.DB) ([]Club, error) {

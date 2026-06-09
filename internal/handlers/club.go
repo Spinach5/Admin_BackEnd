@@ -56,12 +56,12 @@ func CreateClub() gin.HandlerFunc {
 
 		club := &models.Club{
 			Name:         req.Name,
-			Introduction: req.Introduction,
-			Activities:   req.Activities,
-			Category:     req.Category,
-			ImageURL:     req.ImageURL,
+			Introduction: strPtr(req.Introduction),
+			Activities:   strPtr(req.Activities),
+			Category:     strPtr(req.Category),
+			ImageURL:     strPtr(req.ImageURL),
 			Nature:       req.Nature,
-			Contact:      req.Contact,
+			Contact:      strPtr(req.Contact),
 		}
 
 		if err := models.CreateClub(database.DB, club); err != nil {
@@ -92,12 +92,12 @@ func UpdateClub() gin.HandlerFunc {
 		club := &models.Club{
 			ID:           id,
 			Name:         req.Name,
-			Introduction: req.Introduction,
-			Activities:   req.Activities,
-			Category:     req.Category,
-			ImageURL:     req.ImageURL,
+			Introduction: strPtr(req.Introduction),
+			Activities:   strPtr(req.Activities),
+			Category:     strPtr(req.Category),
+			ImageURL:     strPtr(req.ImageURL),
 			Nature:       req.Nature,
-			Contact:      req.Contact,
+			Contact:      strPtr(req.Contact),
 		}
 
 		if err := models.UpdateClub(database.DB, club); err != nil {
