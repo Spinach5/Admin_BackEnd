@@ -2,4 +2,5 @@
 /dist
 .env.prod
 .env.dev
-/uploads
+/uploadsmigrate
+server
