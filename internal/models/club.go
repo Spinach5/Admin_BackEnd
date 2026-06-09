@@ -96,8 +96,8 @@ func UpdateClub(db *sqlx.DB, c *Club) error {
 		return err
 	}
 
-	_, err := db.Exec("UPDATE clubs SET name=?, introduction=?, activities=?, category=?, image_url=?, schoolId=?, nature=?, contact=?, principal_id=? WHERE id=?",
-		c.Name, c.Introduction, c.Activities, c.Category, c.ImageURL, c.SchoolId, c.Nature, c.Contact, c.PrincipalID, c.ID)
+	_, err := db.Exec("UPDATE clubs SET name=?, introduction=?, activities=?, category=?, image_url=?, nature=?, contact=?, principal_id=? WHERE id=?",
+		c.Name, c.Introduction, c.Activities, c.Category, c.ImageURL, c.Nature, c.Contact, c.PrincipalID, c.ID)
 	return err
 }
 
