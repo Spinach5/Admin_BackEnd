@@ -6,6 +6,7 @@ import (
 
 	"web-backend/internal/database"
 	"web-backend/internal/dto"
+	"web-backend/internal/middleware"
 	"web-backend/internal/models"
 
 	"github.com/gin-gonic/gin"
@@ -130,6 +131,53 @@ func DeleteClub() gin.HandlerFunc {
 		}
 
 		dto.SuccessMessage(c, "删除社团成功")
+	}
+}
+
+// --- V1 学生接口 ---
+
+// V1CreateClub 学生创建社团（一个用户只能创建一个）
+func V1CreateClub() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := middleware.GetStudentUserID(c)
+		if userID == 0 {
+			dto.Unauthorized(c, "未登录")
+			return
+		}
+
+		// 检查是否已有社团
+		_, err := models.GetClubByPrincipalID(database.DB, userID)
+		if err == nil {
+			dto.BadRequest(c, "你已拥有一个社团，每个用户只能创建一个社团")
+			return
+		}
+
+		var req dto.CreateClubRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			dto.BadRequest(c, "缺少必要参数")
+			return
+		}
+
+		pid := userID
+		club := &models.Club{
+			Name:         req.Name,
+			Introduction: req.Introduction,
+			Activities:   req.Activities,
+			Category:     req.Category,
+			ImageURL:     req.ImageURL,
+			SchoolId:     req.SchoolID,
+			Nature:       req.Nature,
+			Contact:      req.Contact,
+			PrincipalID:  &pid,
+		}
+
+		if err := models.CreateClub(database.DB, club); err != nil {
+			log.Printf("学生创建社团失败: %v", err)
+			dto.InternalError(c, "创建社团失败")
+			return
+		}
+
+		dto.SuccessMessage(c, "创建社团成功")
 	}
 }
 

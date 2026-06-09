@@ -105,3 +105,9 @@ func DeleteClub(db *sqlx.DB, id int) error {
 	_, err := db.Exec("DELETE FROM clubs WHERE id = ?", id)
 	return err
 }
+
+func GetClubByPrincipalID(db *sqlx.DB, principalID int) (*Club, error) {
+	var club Club
+	err := db.Get(&club, "SELECT id, name, introduction, activities, category, image_url, schoolId, nature, contact, principal_id FROM clubs WHERE principal_id = ? LIMIT 1", principalID)
+	return &club, err
+}

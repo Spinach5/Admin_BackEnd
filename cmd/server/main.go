@@ -116,7 +116,6 @@ func main() {
 			authorized.PUT("/affair-categories/:id", handlers.UpdateAffairCategory())
 			authorized.DELETE("/affair-categories/:id", handlers.DeleteAffairCategory())
 
-
 			// Excel 导入
 			authorized.POST("/excel/import", handlers.ImportExcel())
 			authorized.POST("/excel/preview", handlers.PreviewExcel())
@@ -136,6 +135,7 @@ func main() {
 				v1Auth.POST("/auth/heartbeat", handlers.StudentHeartbeat())
 				v1Auth.GET("/clubs", handlers.V1GetClubs())
 				v1Auth.GET("/clubs/:id", handlers.V1GetClubByID())
+				v1Auth.POST("/clubs", handlers.V1CreateClub())
 				v1Auth.GET("/books/categories", handlers.GetBookCategories())
 				v1Auth.GET("/books", handlers.V1GetBooks())
 				v1Auth.GET("/books/mine", handlers.V1GetMyBooks())
@@ -143,15 +143,6 @@ func main() {
 				v1Auth.POST("/books", handlers.V1CreateBook())
 				v1Auth.PUT("/books/:id", handlers.V1UpdateBook())
 				v1Auth.DELETE("/books/:id", handlers.V1DeleteBook())
-			}
-
-			// body-param 认证的旧接口 (foods/shops/affairs)
-			v1Old := v1.Group("")
-			v1Old.Use(middleware.V1Auth())
-			{
-				v1Old.POST("/foods", handlers.V1GetFoods())
-				v1Old.POST("/shops", handlers.V1GetShops())
-				v1Old.POST("/affairs", handlers.V1GetAffairs())
 			}
 		}
 	}
