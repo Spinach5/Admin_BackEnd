@@ -13,7 +13,6 @@ import (
 	"web-backend/internal/services"
 
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func StudentRegister(cfg *config.Config) gin.HandlerFunc {
@@ -53,18 +52,11 @@ func StudentRegister(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
-		hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), 12)
-		if err != nil {
-			log.Printf("密码加密失败: %v", err)
-			dto.InternalError(c, "服务器错误")
-			return
-		}
-
 		user := &models.User{
 			StuID:        req.StuID,
 			NickName:     req.NickName,
 			SchoolID:     req.SchoolID,
-			PasswordHash: string(hashed),
+			PasswordHash: req.Password,
 		}
 
 		if err := models.CreateUserWithPassword(database.DB, user); err != nil {
@@ -114,7 +106,7 @@ func StudentLogin(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
-		if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
+		if user.PasswordHash != req.Password {
 			dto.Error(c, 200, "密码错误")
 			return
 		}
@@ -212,7 +204,7 @@ func StudentHeartbeat() gin.HandlerFunc {
 			log.Printf("更新学生心跳失败 userId=%d: %v", userID, err)
 			dto.InternalError(c, "心跳更新失败")
 			return
-		}
+	}
 
 		dto.SuccessMessage(c, "ok")
 	}
