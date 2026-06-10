@@ -35,8 +35,8 @@ func GetAllAdmins(db *sqlx.DB) ([]Admin, error) {
 	return admins, err
 }
 
-func CreateAdmin(db *sqlx.DB, account, password string, isSuper int) error {
-	_, err := db.Exec("INSERT INTO admins (account, password, is_super) VALUES (?, ?, ?)", account, password, isSuper)
+func CreateAdmin(db *sqlx.DB, account, password, schoolId string, isSuper int) error {
+	_, err := db.Exec("INSERT INTO admins (account, password, schoolId, is_super) VALUES (?, ?, ?, ?)", account, password, schoolId, isSuper)
 	return err
 }
 

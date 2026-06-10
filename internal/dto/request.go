@@ -13,6 +13,7 @@ type ChangePasswordRequest struct {
 type CreateAdminRequest struct {
 	Account  string `json:"account" binding:"required" validate:"required,min=2"`
 	Password string `json:"password" binding:"required" validate:"required,min=8"`
+	SchoolID string `json:"schoolId"`
 	IsSuper  int    `json:"is_super" binding:"omitempty" validate:"oneof=0 1"`
 }
 

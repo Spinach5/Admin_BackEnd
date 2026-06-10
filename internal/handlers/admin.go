@@ -84,7 +84,7 @@ func CreateAdmin() gin.HandlerFunc {
 			return
 		}
 
-		if err := models.CreateAdmin(database.DB, req.Account, string(hashed), req.IsSuper); err != nil {
+		if err := models.CreateAdmin(database.DB, req.Account, string(hashed), req.SchoolID, req.IsSuper); err != nil {
 			log.Printf("添加用户失败: %v", err)
 			dto.InternalError(c, "添加用户失败")
 			return

@@ -27,6 +27,18 @@ func GetClubs() gin.HandlerFunc {
 	}
 }
 
+func GetClubCategories() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		clubs, err := models.GetAllClubCategories(database.DB)
+		if err != nil {
+			log.Printf("获取社团种类失败: %v", err)
+			dto.InternalError(c, "获取社团种类失败")
+			return
+		}
+		dto.Success(c, clubs)
+	}
+}
+
 // GetClubByID 获取单个社团
 func GetClubByID() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -193,6 +205,18 @@ func V1GetClubs() gin.HandlerFunc {
 			return
 		}
 		dto.Success(c, clubs)
+	}
+}
+
+func V1GetClubCategories() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		categories, err := models.GetAllClubCategories(database.DB)
+		if err != nil {
+			log.Printf("获取社团列表失败: %v", err)
+			dto.InternalError(c, "获取社团列表失败")
+			return
+		}
+		dto.Success(c, categories)
 	}
 }
 

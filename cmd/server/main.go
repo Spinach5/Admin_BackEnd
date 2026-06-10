@@ -105,6 +105,7 @@ func main() {
 
 			// 社团管理
 			authorized.GET("/clubs", handlers.GetClubs())
+			authorized.GET("/clubs/categories", handlers.GetClubCategories())
 			authorized.GET("/clubs/:id", handlers.GetClubByID())
 			authorized.POST("/clubs", handlers.CreateClub())
 			authorized.PUT("/clubs/:id", handlers.UpdateClub())
@@ -134,6 +135,7 @@ func main() {
 				v1Auth.GET("/auth/me", handlers.StudentMe())
 				v1Auth.POST("/auth/heartbeat", handlers.StudentHeartbeat())
 				v1Auth.GET("/clubs", handlers.V1GetClubs())
+				v1Auth.GET("/clubs/categories", handlers.V1GetClubCategories())
 				v1Auth.GET("/clubs/:id", handlers.V1GetClubByID())
 				v1Auth.POST("/clubs", handlers.V1CreateClub())
 				v1Auth.GET("/books/categories", handlers.GetBookCategories())

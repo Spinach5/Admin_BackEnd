@@ -64,6 +64,14 @@ func main() {
 			log.Println("  ✓ admins.last_active_at 列已添加")
 		}
 
+		// 添加 schoolId 列（兼容旧表）
+		var adminsSchoolColCount int
+		appDB.Get(&adminsSchoolColCount, "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'admins' AND COLUMN_NAME = 'schoolId'")
+		if adminsSchoolColCount == 0 {
+			appDB.MustExec("ALTER TABLE admins ADD COLUMN schoolId VARCHAR(50) NOT NULL DEFAULT ''")
+			log.Println("  ✓ admins.schoolId 列已添加")
+		}
+
 	// 餐厅表
 	appDB.MustExec(`
 		CREATE TABLE IF NOT EXISTS shops (

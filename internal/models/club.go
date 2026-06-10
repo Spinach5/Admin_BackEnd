@@ -70,7 +70,12 @@ func GetAllClubs(db *sqlx.DB) ([]ClubWithPrincipal, error) {
 		ORDER BY c.id`)
 	return clubs, err
 }
-
+func GetAllClubCategories(db *sqlx.DB) ([]string, error) {
+	var categories []string
+	query := `SELECT DISTINCT category FROM clubs WHERE category IS NOT NULL AND category != '' ORDER BY category`
+	err := db.Select(&categories, query)
+	return categories, err
+}
 func GetClubByID(db *sqlx.DB, id int) (*ClubWithPrincipal, error) {
 	var club ClubWithPrincipal
 	err := db.Get(&club, `SELECT c.id, c.name, c.introduction, c.activities, c.category, c.image_url, c.schoolId, c.nature, c.contact, c.principal_id,
