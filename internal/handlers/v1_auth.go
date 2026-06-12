@@ -33,15 +33,10 @@ func StudentRegister(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
-		if req.SchoolID != "hbut" {
-			dto.BadRequest(c, "暂不支持该学校")
-			return
-		}
-
-		// 教务系统凭证验证
-		if err := services.VerifyHbutCredentials(req.StuID, req.Password); err != nil {
-			log.Printf("教务系统验证失败 stuId=%s: %v", req.StuID, err)
-			dto.BadRequest(c, "学号或密码错误")
+		// 教务系统凭证验证（根据学校代码调用对应的验证函数）
+		if err := services.VerifySchoolCredentials(req.SchoolID, req.StuID, req.Password); err != nil {
+			log.Printf("教务系统验证失败 stuId=%s schoolId=%s: %v", req.StuID, req.SchoolID, err)
+			dto.BadRequest(c, err.Error())
 			return
 		}
 

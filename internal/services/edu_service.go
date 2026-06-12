@@ -1,10 +1,6 @@
 package services
 
 import (
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,8 +11,23 @@ import (
 	"time"
 )
 
-// hbutPublicKey 来自 auth.js / loginEncrypt.h5.js，与前端 JSEncrypt 使用的公钥一致
-const hbutPublicKey = "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDcwU0RBrR31L3eHKVGogsJKdr36D3rrjUNaZ77yxxO9HSIojA4jyJylCVALkcu4cK+bbGLpedilJSlcyohso+IBI+A/eAfjS/GhIT/OWEsg8/+YLt+asM8+pdISE/T14tTqg/WDe8nqX48dazB0Izu1ytaPPFRWuYqtUTRpZ7IsQIDAQAB"
+// SchoolVerifier 教务系统验证函数类型
+type SchoolVerifier func(stuID, password string) error
+
+// schoolVerifiers 支持的学校及其验证函数
+var schoolVerifiers = map[string]SchoolVerifier{
+	"hbut": VerifyHbutCredentials,
+}
+
+// VerifySchoolCredentials 根据学校代码调用对应的教务验证函数
+// 成功返回 nil，不支持该学校或验证失败返回 error
+func VerifySchoolCredentials(schoolID, stuID, password string) error {
+	verifier, ok := schoolVerifiers[schoolID]
+	if !ok {
+		return errors.New("暂不支持该学校")
+	}
+	return verifier(stuID, password)
+}
 
 // VerifyHbutCredentials 模拟登录 HBUT 教务系统验证账号密码
 // password 参数已经是前端 RSA 加密后的密文，直接转发，不再二次加密
@@ -75,29 +86,4 @@ func VerifyHbutCredentials(stuID, password string) error {
 
 	// HTML 响应 + HTTP 200 = 登录成功
 	return nil
-}
-
-// rsaEncrypt 使用 RSA PKCS1v15 加密明文，返回 Base64 密文
-func rsaEncrypt(plaintext, pubKeyBase64 string) (string, error) {
-	derBytes, err := base64.StdEncoding.DecodeString(pubKeyBase64)
-	if err != nil {
-		return "", fmt.Errorf("公钥解码失败: %w", err)
-	}
-
-	pub, err := x509.ParsePKIXPublicKey(derBytes)
-	if err != nil {
-		return "", fmt.Errorf("公钥解析失败: %w", err)
-	}
-
-	rsaPub, ok := pub.(*rsa.PublicKey)
-	if !ok {
-		return "", errors.New("不是有效的 RSA 公钥")
-	}
-
-	ciphertext, err := rsa.EncryptPKCS1v15(rand.Reader, rsaPub, []byte(plaintext))
-	if err != nil {
-		return "", fmt.Errorf("RSA 加密失败: %w", err)
-	}
-
-	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
