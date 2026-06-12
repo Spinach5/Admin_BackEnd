@@ -144,6 +144,8 @@ func main() {
 				v1Auth.POST("/books", handlers.V1CreateBook())
 				v1Auth.PUT("/books/:id", handlers.V1UpdateBook())
 				v1Auth.DELETE("/books/:id", handlers.V1DeleteBook())
+				v1Auth.GET("/foods", handlers.V1GetFoods())
+				v1Auth.GET("/foods/filters", handlers.V1GetFoodFilters())
 			}
 		}
 	}
