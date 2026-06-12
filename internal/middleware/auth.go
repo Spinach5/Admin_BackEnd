@@ -1,15 +1,10 @@
 package middleware
 
 import (
-	"database/sql"
-	"log"
 	"strings"
-	"time"
 
 	"web-backend/internal/config"
-	"web-backend/internal/database"
 	"web-backend/internal/dto"
-	"web-backend/internal/models"
 	"web-backend/internal/services"
 
 	"github.com/gin-gonic/gin"
@@ -42,22 +37,9 @@ func Auth(cfg *config.Config) gin.HandlerFunc {
 		c.Set("account", claims.Account)
 		c.Set("is_super", claims.IsSuper)
 
-		// 心跳超时检测：超过 5 分钟未活跃则拒绝请求
-		if claims.Account != "" {
-			lastActive, err := models.GetAdminLastActive(database.DB, claims.Account)
-			if err != nil && err != sql.ErrNoRows {
-				log.Printf("查询管理员活跃时间失败 account=%s: %v", claims.Account, err)
-			}
-			if lastActive != "" {
-				t, parseErr := time.Parse("2006-01-02 15:04:05", lastActive[:19])
-				if parseErr == nil && time.Since(t) > 5*time.Minute {
-					models.SetAdminActive(database.DB, claims.Account, 0)
-					dto.Unauthorized(c, "会话已过期，请重新登录")
-					c.Abort()
-					return
-				}
-			}
-		}
+		// 令牌永不过期，仅在用户主动注销时失效
+		// 心跳端点 /api/auth/heartbeat 仍可用于更新 updated_at
+		// 后台定时任务 CleanStaleAdminSessions 会在 5 分钟无活动后自动清理 is_active
 
 		c.Next()
 	}

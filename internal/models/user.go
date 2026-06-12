@@ -90,6 +90,16 @@ func UpdateUser(db *sqlx.DB, u *User) error {
 	return err
 }
 
+func UpdateUserPassword(db *sqlx.DB, userID int, passwordHash string) error {
+	_, err := db.Exec("UPDATE users SET password_hash = ? WHERE id = ? AND isDeleted = 0", passwordHash, userID)
+	return err
+}
+
+func UpdateUserNickName(db *sqlx.DB, userID int, nickName string) error {
+	_, err := db.Exec("UPDATE users SET nickName = ? WHERE id = ? AND isDeleted = 0", nickName, userID)
+	return err
+}
+
 func SoftDeleteUser(db *sqlx.DB, id int) error {
 	_, err := db.Exec("UPDATE users SET isDeleted = 1 WHERE id = ?", id)
 	return err

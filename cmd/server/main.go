@@ -126,7 +126,6 @@ func main() {
 		v1 := r.Group("/api/v1")
 		{
 			v1.POST("/auth/register", handlers.StudentRegister(cfg))
-			v1.POST("/auth/login", handlers.StudentLogin(cfg))
 			v1.GET("/auth/check-user", handlers.CheckUser())
 
 			v1Auth := v1.Group("")

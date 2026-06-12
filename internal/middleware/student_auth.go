@@ -1,15 +1,10 @@
 package middleware
 
 import (
-	"database/sql"
-	"log"
 	"strings"
-	"time"
 
 	"web-backend/internal/config"
-	"web-backend/internal/database"
 	"web-backend/internal/dto"
-	"web-backend/internal/models"
 	"web-backend/internal/services"
 
 	"github.com/gin-gonic/gin"
@@ -40,19 +35,8 @@ func StudentAuth(cfg *config.Config) gin.HandlerFunc {
 
 		c.Set("student_user_id", claims.UserID)
 
-		// 心跳超时检测：超过 5 分钟未活跃则拒绝请求
-		lastActive, err := models.GetUserLastActive(database.DB, claims.UserID)
-		if err != nil && err != sql.ErrNoRows {
-			log.Printf("查询用户活跃时间失败 userId=%d: %v", claims.UserID, err)
-		}
-		if lastActive != "" {
-			t, parseErr := time.Parse("2006-01-02 15:04:05", lastActive[:19])
-			if parseErr == nil && time.Since(t) > 5*time.Minute {
-				dto.Unauthorized(c, "会话已过期，请重新登录")
-				c.Abort()
-				return
-			}
-		}
+		// 令牌永不过期，仅在用户主动注销时失效
+		// 心跳端点 /api/v1/auth/heartbeat 仍可用于更新 last_active_at（用于统计/监控）
 
 		c.Next()
 	}

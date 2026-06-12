@@ -19,18 +19,13 @@ import (
 const hbutPublicKey = "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDcwU0RBrR31L3eHKVGogsJKdr36D3rrjUNaZ77yxxO9HSIojA4jyJylCVALkcu4cK+bbGLpedilJSlcyohso+IBI+A/eAfjS/GhIT/OWEsg8/+YLt+asM8+pdISE/T14tTqg/WDe8nqX48dazB0Izu1ytaPPFRWuYqtUTRpZ7IsQIDAQAB"
 
 // VerifyHbutCredentials 模拟登录 HBUT 教务系统验证账号密码
+// password 参数已经是前端 RSA 加密后的密文，直接转发，不再二次加密
 // 成功返回 nil，失败返回 error
 func VerifyHbutCredentials(stuID, password string) error {
-	// 1. RSA 加密密码
-	encrypted, err := rsaEncrypt(password, hbutPublicKey)
-	if err != nil {
-		return fmt.Errorf("密码加密失败: %w", err)
-	}
-
-	// 2. 构造 form 请求体
+	// 构造 form 请求体（密码已是前端加密后的密文）
 	form := url.Values{}
 	form.Set("username", stuID)
-	form.Set("password", encrypted)
+	form.Set("password", password)
 	form.Set("rememberMe", "1")
 
 	// 3. 发送 POST 请求

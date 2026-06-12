@@ -21,8 +21,8 @@ func GenerateToken(userID int, account string, isSuper int, secret string, expir
 		Account: account,
 		IsSuper: isSuper,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(expireHours) * time.Hour)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			// 不设置 ExpiresAt，令牌永不过期，仅在用户主动注销时失效
+			IssuedAt: jwt.NewNumericDate(time.Now()),
 		},
 	}
 

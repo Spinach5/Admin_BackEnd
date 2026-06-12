@@ -1,9 +1,10 @@
 package handlers
 
 import (
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"log"
-	"strconv"
 
 	"web-backend/internal/config"
 	"web-backend/internal/database"
@@ -13,8 +14,12 @@ import (
 	"web-backend/internal/services"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 )
 
+// StudentRegister 注册/登录（幂等）
+// 已注册 → 验证教务 + 更新密码/昵称 → 返回 token
+// 未注册 → 验证教务 + 创建用户 → 返回 token
 func StudentRegister(cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req dto.StudentRegisterRequest
@@ -28,7 +33,6 @@ func StudentRegister(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
-		// 学校白名单校验
 		if req.SchoolID != "hbut" {
 			dto.BadRequest(c, "暂不支持该学校")
 			return
@@ -41,34 +45,64 @@ func StudentRegister(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
-		_, err := models.GetUserByStuIDAndSchoolID(database.DB, req.StuID, req.SchoolID)
+		// 前端发来的是 RSA 密文（>72字节），先 SHA-256 再 bcrypt
+		sha := sha256.Sum256([]byte(req.Password))
+		hashed, err := bcrypt.GenerateFromPassword([]byte(hex.EncodeToString(sha[:])), bcrypt.DefaultCost)
+		if err != nil {
+			log.Printf("密码哈希失败: %v", err)
+			dto.InternalError(c, "服务器错误")
+			return
+		}
+		passwordHash := string(hashed)
+
+		existing, err := models.GetUserByStuIDAndSchoolID(database.DB, req.StuID, req.SchoolID)
 		if err != nil && err != sql.ErrNoRows {
 			log.Printf("查询用户失败: %v", err)
 			dto.InternalError(c, "服务器错误")
 			return
 		}
-		if err == nil {
-			dto.BadRequest(c, "该学号在此学校已注册")
-			return
+
+		var userID int
+		var nickName string
+
+		if existing != nil {
+			// 已注册：更新密码、昵称（如有变化）
+			userID = existing.ID
+			nickName = existing.NickName
+
+			if req.NickName != "" && req.NickName != existing.NickName {
+				if err := models.UpdateUserNickName(database.DB, userID, req.NickName); err != nil {
+					log.Printf("更新昵称失败: %v", err)
+				}
+				nickName = req.NickName
+			}
+
+			if err := models.UpdateUserPassword(database.DB, userID, passwordHash); err != nil {
+				log.Printf("更新密码失败: %v", err)
+				dto.InternalError(c, "服务器错误")
+				return
+			}
+		} else {
+			// 未注册：创建用户
+			user := &models.User{
+				StuID:        req.StuID,
+				NickName:     req.NickName,
+				SchoolID:     req.SchoolID,
+				PasswordHash: passwordHash,
+			}
+
+			if err := models.CreateUserWithPassword(database.DB, user); err != nil {
+				log.Printf("创建用户失败: %v", err)
+				dto.InternalError(c, "注册失败")
+				return
+			}
+			userID = user.ID
+			nickName = req.NickName
 		}
 
-		user := &models.User{
-			StuID:        req.StuID,
-			NickName:     req.NickName,
-			SchoolID:     req.SchoolID,
-			PasswordHash: req.Password,
-		}
+		models.UpdateUserLastActive(database.DB, userID)
 
-		if err := models.CreateUserWithPassword(database.DB, user); err != nil {
-			log.Printf("创建用户失败: %v", err)
-			dto.InternalError(c, "注册失败")
-			return
-		}
-
-		models.UpdateUserLastActive(database.DB, user.ID)
-
-		expireHours := parseExpireHours(cfg)
-		token, err := services.GenerateToken(user.ID, "", 0, cfg.JWTSecret, expireHours)
+		token, err := services.GenerateToken(userID, "", 0, cfg.JWTSecret, 0)
 		if err != nil {
 			log.Printf("生成token失败: %v", err)
 			dto.InternalError(c, "服务器错误")
@@ -78,56 +112,10 @@ func StudentRegister(cfg *config.Config) gin.HandlerFunc {
 		dto.Success(c, gin.H{
 			"token": token,
 			"user": gin.H{
-				"id":       user.ID,
-				"stuId":    user.StuID,
-				"nickName": user.NickName,
-				"schoolId": user.SchoolID,
-			},
-		})
-	}
-}
-
-func StudentLogin(cfg *config.Config) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		var req dto.StudentLoginRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			dto.BadRequest(c, "请填写学号、密码和学校")
-			return
-		}
-
-		user, err := models.GetUserByStuIDAndSchoolIDWithPassword(database.DB, req.StuID, req.SchoolID)
-		if err == sql.ErrNoRows {
-			dto.Error(c, 200, "学号未注册或学校不匹配")
-			return
-		}
-		if err != nil {
-			log.Printf("查询用户失败: %v", err)
-			dto.InternalError(c, "服务器错误")
-			return
-		}
-
-		if user.PasswordHash != req.Password {
-			dto.Error(c, 200, "密码错误")
-			return
-		}
-
-		models.UpdateUserLastActive(database.DB, user.ID)
-
-		expireHours := parseExpireHours(cfg)
-		token, err := services.GenerateToken(user.ID, "", 0, cfg.JWTSecret, expireHours)
-		if err != nil {
-			log.Printf("生成token失败: %v", err)
-			dto.InternalError(c, "服务器错误")
-			return
-		}
-
-		dto.Success(c, gin.H{
-			"token": token,
-			"user": gin.H{
-				"id":       user.ID,
-				"stuId":    user.StuID,
-				"nickName": user.NickName,
-				"schoolId": user.SchoolID,
+				"id":       userID,
+				"stuId":    req.StuID,
+				"nickName": nickName,
+				"schoolId": req.SchoolID,
 			},
 		})
 	}
@@ -148,17 +136,6 @@ func StudentMe() gin.HandlerFunc {
 			"schoolId": user.SchoolID,
 		})
 	}
-}
-
-func parseExpireHours(cfg *config.Config) int {
-	if cfg.JWTExpireHours == "" {
-		return 24
-	}
-	h, err := strconv.Atoi(cfg.JWTExpireHours)
-	if err != nil || h <= 0 {
-		return 24
-	}
-	return h
 }
 
 // CheckUser 检查用户是否存在 (公开接口)
