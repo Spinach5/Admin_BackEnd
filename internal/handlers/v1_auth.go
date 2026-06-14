@@ -33,7 +33,7 @@ func StudentRegister(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
-		// 教务系统凭证验证（根据学校代码调用对应的验证函数）
+		// 教务系统凭证验证（内部通过云函数 captcha 自动求解滑块）
 		if err := services.VerifySchoolCredentials(req.SchoolID, req.StuID, req.Password); err != nil {
 			log.Printf("教务系统验证失败 stuId=%s schoolId=%s: %v", req.StuID, req.SchoolID, err)
 			dto.BadRequest(c, err.Error())
@@ -60,7 +60,23 @@ func StudentRegister(cfg *config.Config) gin.HandlerFunc {
 		var userID int
 		var nickName string
 
-		if existing != nil {
+		if err == sql.ErrNoRows {
+			// 未注册：创建用户
+			user := &models.User{
+				StuID:        req.StuID,
+				NickName:     req.NickName,
+				SchoolID:     req.SchoolID,
+				PasswordHash: passwordHash,
+			}
+
+			if err := models.CreateUserWithPassword(database.DB, user); err != nil {
+				log.Printf("创建用户失败: %v", err)
+				dto.InternalError(c, "注册失败")
+				return
+			}
+			userID = user.ID
+			nickName = req.NickName
+		} else {
 			// 已注册：更新密码、昵称（如有变化）
 			userID = existing.ID
 			nickName = existing.NickName
@@ -77,22 +93,6 @@ func StudentRegister(cfg *config.Config) gin.HandlerFunc {
 				dto.InternalError(c, "服务器错误")
 				return
 			}
-		} else {
-			// 未注册：创建用户
-			user := &models.User{
-				StuID:        req.StuID,
-				NickName:     req.NickName,
-				SchoolID:     req.SchoolID,
-				PasswordHash: passwordHash,
-			}
-
-			if err := models.CreateUserWithPassword(database.DB, user); err != nil {
-				log.Printf("创建用户失败: %v", err)
-				dto.InternalError(c, "注册失败")
-				return
-			}
-			userID = user.ID
-			nickName = req.NickName
 		}
 
 		models.UpdateUserLastActive(database.DB, userID)
