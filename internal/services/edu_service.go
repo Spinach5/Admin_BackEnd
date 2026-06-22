@@ -95,11 +95,14 @@ func VerifyHbutCredentials(stuID, password string) error {
 }
 
 // postLogin POST 教务登录，返回状态码和响应体
-func postLogin(stuID, encPwd string) (int, string, error) {
+func postLogin(stuID, encPwd, jcaptchaCode string) (int, string, error) {
 	form := url.Values{}
 	form.Set("username", stuID)
 	form.Set("password", encPwd)
 	form.Set("rememberMe", "1")
+	if jcaptchaCode != "" {
+		form.Set("jcaptchaCode", jcaptchaCode)
+	}
 
 	req, err := http.NewRequest("POST", loginURL, strings.NewReader(form.Encode()))
 	if err != nil {
