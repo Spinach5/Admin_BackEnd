@@ -262,8 +262,8 @@ func solveGap(shadeURL, cutoutURL string) (int, error) {
 	return 0, errors.New("云函数未返回距离")
 }
 
-// submitCaptcha 提交验证码结果到 超星
-func submitCaptcha(token, iv string, x int) (bool, error) {
+// submitCaptcha 提交验证码结果到超星，返回 validate 字符串
+func submitCaptcha(token, iv string, x int) (string, error) {
 	params := url.Values{}
 	params.Set("callback", "cx_captcha_function")
 	params.Set("captchaId", captchaID)
@@ -280,7 +280,7 @@ func submitCaptcha(token, iv string, x int) (bool, error) {
 	checkURL := fmt.Sprintf("https://captcha.chaoxing.com/captcha/check/verification/result?%s", params.Encode())
 	resp, err := http.Get(checkURL)
 	if err != nil {
-		return false, err
+		return "", err
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
@@ -289,13 +289,42 @@ func submitCaptcha(token, iv string, x int) (bool, error) {
 	start := strings.Index(bodyStr, "(")
 	end := strings.LastIndex(bodyStr, ")")
 	if start == -1 || end == -1 {
-		return false, errors.New("解析 captcha result 失败")
+		return "", errors.New("解析 captcha result 失败")
 	}
+
 	var result struct {
-		Code interface{} `json:"code"`
+		Result    bool        `json:"result"`
+		Code      interface{} `json:"code"`
+		ExtraData interface{} `json:"extraData"`
 	}
-	json.Unmarshal([]byte(bodyStr[start+1:end]), &result)
+	if err := json.Unmarshal([]byte(bodyStr[start+1:end]), &result); err != nil {
+		return "", fmt.Errorf("解析 captcha result JSON 失败: %w", err)
+	}
 
 	code := fmt.Sprintf("%v", result.Code)
-	return code == "0" || code == "200", nil
+	if code != "0" && code != "200" && !result.Result {
+		return "", fmt.Errorf("captcha 验证失败: code=%s, result=%v", code, result.Result)
+	}
+
+	// 提取 validate: 优先从 extraData JSON 字符串解析
+	if ed, ok := result.ExtraData.(string); ok && ed != "" {
+		var extra struct {
+			Validate string `json:"validate"`
+		}
+		if json.Unmarshal([]byte(ed), &extra) == nil && extra.Validate != "" {
+			return extra.Validate, nil
+		}
+	}
+
+	// 回退: 从原始响应正则匹配
+	if idx := strings.Index(bodyStr, `"validate":"`); idx != -1 {
+		vs := idx + len(`"validate":"`)
+		if ve := strings.Index(bodyStr[vs:], `"`); ve != -1 {
+			validate := bodyStr[vs : vs+ve]
+			validate = strings.ReplaceAll(validate, `\`, "")
+			return validate, nil
+		}
+	}
+
+	return "", errors.New("captcha 验证成功但未提取到 validate")
 }
