@@ -52,45 +52,9 @@ func VerifySchoolCredentials(schoolID, stuID, password string) error {
 // VerifyHbutCredentials 模拟登录 HBUT 教务系统验证账号密码
 // password 已经是前端 RSA 加密后的密文
 func VerifyHbutCredentials(stuID, password string) error {
-	// 1. 直接 POST 登录
-	status, body, err := postLogin(stuID, password)
-	if err != nil {
+	if err := solveCaptchaAndLogin(stuID, password); err != nil {
 		return err
 	}
-
-	// 302 = 成功
-	if status >= 300 && status < 400 {
-		return nil
-	}
-
-	// JSON = 错误
-	if strings.HasPrefix(body, "{") {
-		var result struct {
-			Code    int    `json:"code"`
-			Message string `json:"message"`
-			Msg     string `json:"msg"`
-		}
-		if json.Unmarshal([]byte(body), &result) == nil && result.Code != 0 && result.Code != 200 {
-			msg := result.Message
-			if msg == "" {
-				msg = result.Msg
-			}
-			if msg == "" {
-				msg = "学号或密码错误"
-			}
-			return errors.New(msg)
-		}
-	}
-
-	// 验证码检测
-	if strings.Contains(body, "captcha") || strings.Contains(body, "jcaptchaCode") ||
-		strings.Contains(body, "chaoxing.com/load.min.js") {
-		if solveCaptchaAndLogin(stuID, password) {
-			return nil
-		}
-		return errors.New("验证码验证失败，请手动登录教务系统 https://jwxt.hbut.edu.cn 后重试")
-	}
-
 	return nil
 }
 
