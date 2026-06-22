@@ -26,6 +26,22 @@ func md5Hash(s string) string {
 	return hex.EncodeToString(h[:])
 }
 
+func CallFunction(functionName string, data map[string]any) (any, error) {
+	if data == nil {
+		data = map[string]any{}
+	}
+
+	path := fmt.Sprintf("/v1/functions/%s", functionName)
+	result, err := Cloudbase.Request("POST", path, data, nil)
+
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println("云函数调用结果:", result)
+	return result, nil
+}
+
 func uuid4() string {
 	b := make([]byte, 16)
 	rand.Read(b)
@@ -94,7 +110,7 @@ func postLogin(stuID, encPwd, jcaptchaCode string) (int, string, error) {
 
 // solveCaptchaAndLogin 先解滑块验证码（最多3次），然后带 jcaptchaCode 登录教务系统
 func solveCaptchaAndLogin(stuID, encPwd string) error {
-	for attempt := 0; attempt < 3; attempt++ {
+	for range 3 {
 		// 1. 获取验证码图片
 		token, iv, shadeURL, cutoutURL, err := getCaptchaImages()
 		if err != nil {
@@ -174,7 +190,7 @@ func getCaptchaImages() (token, iv, shadeURL, cutoutURL string, err error) {
 
 	t := strconv.FormatInt(conf.T, 10)
 	captchaKey := md5Hash(t + uuid4())
-	token = md5Hash(t + captchaID + "slide" + captchaKey) + ":" + strconv.FormatInt(conf.T+0x493e0, 10)
+	token = md5Hash(t+captchaID+"slide"+captchaKey) + ":" + strconv.FormatInt(conf.T+0x493e0, 10)
 	iv = md5Hash(captchaID + "slide" + strconv.FormatInt(time.Now().UnixMilli(), 10) + uuid4())
 
 	imgParams := url.Values{}
@@ -196,7 +212,7 @@ func getCaptchaImages() (token, iv, shadeURL, cutoutURL string, err error) {
 		return "", "", "", "", err
 	}
 	imgReq.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
-		imgReq.Header.Set("Referer", "https://jwxt.hbut.edu.cn/")
+	imgReq.Header.Set("Referer", "https://jwxt.hbut.edu.cn/")
 	imgReq.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 	imgResp, err := http.DefaultClient.Do(imgReq)
 	if err != nil {
@@ -232,15 +248,17 @@ func getCaptchaImages() (token, iv, shadeURL, cutoutURL string, err error) {
 
 // solveGap 调用云函数 captcha 计算缺口距离
 func solveGap(shadeURL, cutoutURL string) (int, error) {
-	result, err := Cloudbase.CallFunction("captcha", map[string]interface{}{
+	result, err := Cloudbase.Request("POST", "/v1/functions/captcha", map[string]any{
 		"shadeImage":  shadeURL,
 		"cutoutImage": cutoutURL,
-	})
+	}, nil)
 	if err != nil {
 		return 0, err
 	}
-	if x, ok := result["x"].(float64); ok {
-		return int(x), nil
+	if m, ok := result.(map[string]any); ok {
+		if x, ok := m["x"].(float64); ok {
+			return int(x), nil
+		}
 	}
 	return 0, errors.New("云函数未返回距离")
 }
@@ -283,8 +301,8 @@ func submitCaptcha(token, iv string, x int) (string, error) {
 
 	var result struct {
 		Result    bool        `json:"result"`
-		Code      interface{} `json:"code"`
-		ExtraData interface{} `json:"extraData"`
+		Code      any `json:"code"`
+		ExtraData any `json:"extraData"`
 	}
 	if err := json.Unmarshal([]byte(bodyStr[start+1:end]), &result); err != nil {
 		return "", fmt.Errorf("解析 captcha result JSON 失败: %w", err)

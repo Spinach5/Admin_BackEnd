@@ -32,7 +32,7 @@ func NewCloudBaseClient() *CloudBaseClient {
 	}
 }
 
-func (c *CloudBaseClient) request(method, path string, body interface{}) (map[string]interface{}, error) {
+func (c *CloudBaseClient) Request(method, path string, body any, customHeaders map[string]string) (any, error) {
 	url := c.BaseURL + path
 
 	var reqBody io.Reader
@@ -53,30 +53,36 @@ func (c *CloudBaseClient) request(method, path string, body interface{}) (map[st
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Authorization", "Bearer "+c.AccessToken)
 
+	for key, value := range customHeaders {
+		req.Header.Set(key, value)
+	}
+
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("请求失败: %w", err)
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("cloudbase 请求失败，状态码: %d, 响应: %s", resp.StatusCode, string(bodyBytes))
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("请求失败，状态码: %d, 响应: %s", resp.StatusCode, string(bodyBytes))
 	}
 
-	var result map[string]interface{}
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("读取响应失败: %w", err)
+	}
+
+	if len(bodyBytes) == 0 {
+		return true, nil
+	}
+
+	var result any
 	if err := json.Unmarshal(bodyBytes, &result); err != nil {
 		return nil, fmt.Errorf("JSON解析失败: %w", err)
 	}
-	return result, nil
-}
 
-func (c *CloudBaseClient) CallFunction(name string, data map[string]interface{}) (map[string]interface{}, error) {
-	if data == nil {
-		data = map[string]interface{}{}
-	}
-	path := fmt.Sprintf("/v1/functions/%s", name)
-	return c.request("POST", path, data)
+	return result, nil
 }
 
 var Cloudbase = NewCloudBaseClient()
