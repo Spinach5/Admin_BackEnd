@@ -144,6 +144,7 @@ func getCaptchaImages() (token, iv, shadeURL, cutoutURL string, err error) {
 		return "", "", "", "", err
 	}
 	confReq.Header.Set("Referer", "https://jwxt.hbut.edu.cn/")
+	confReq.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 	resp, err := http.DefaultClient.Do(confReq)
 	if err != nil {
 		return "", "", "", "", err
@@ -196,6 +197,7 @@ func getCaptchaImages() (token, iv, shadeURL, cutoutURL string, err error) {
 	}
 	imgReq.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
 		imgReq.Header.Set("Referer", "https://jwxt.hbut.edu.cn/")
+	imgReq.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 	imgResp, err := http.DefaultClient.Do(imgReq)
 	if err != nil {
 		return "", "", "", "", err
@@ -264,6 +266,7 @@ func submitCaptcha(token, iv string, x int) (string, error) {
 		return "", err
 	}
 	checkReq.Header.Set("Referer", "https://jwxt.hbut.edu.cn/")
+	checkReq.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 	resp, err := http.DefaultClient.Do(checkReq)
 	if err != nil {
 		return "", err
