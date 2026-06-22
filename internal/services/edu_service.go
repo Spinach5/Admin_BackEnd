@@ -128,17 +128,17 @@ func postLogin(stuID, encPwd, jcaptchaCode string) (int, string, error) {
 	return resp.StatusCode, string(body), nil
 }
 
-// solveCaptchaAndLogin 获取验证码图片 → 云函数求解 → 提交 → 重新登录
-func solveCaptchaAndLogin(stuID, encPwd string) bool {
+// solveCaptchaAndLogin 先解滑块验证码（最多3次），然后带 jcaptchaCode 登录教务系统
+func solveCaptchaAndLogin(stuID, encPwd string) error {
 	for attempt := 0; attempt < 3; attempt++ {
-		// 1. 获取验证码配置和图片 URL
+		// 1. 获取验证码图片
 		token, iv, shadeURL, cutoutURL, err := getCaptchaImages()
 		if err != nil {
 			log.Printf("[Captcha] 获取验证码图片失败: %v", err)
 			continue
 		}
 
-		// 2. 调用云函数求解缺口距离
+		// 2. 云函数求解缺口距离
 		x, err := solveGap(shadeURL, cutoutURL)
 		if err != nil {
 			log.Printf("[Captcha] 求解失败: %v", err)
@@ -149,24 +149,26 @@ func solveCaptchaAndLogin(stuID, encPwd string) bool {
 			continue
 		}
 
-		// 3. 提交验证码结果
-		ok, err := submitCaptcha(token, iv, x)
-		if err != nil || !ok {
+		// 3. 提交验证码结果，获取 validate
+		validate, err := submitCaptcha(token, iv, x)
+		if err != nil {
 			log.Printf("[Captcha] 提交验证码失败: %v", err)
 			continue
 		}
+		log.Printf("[Captcha] solved, validate: %s", validate)
 
-		// 4. 重新登录
-		status, _, err := postLogin(stuID, encPwd)
+		// 4. 带 jcaptchaCode 登录教务系统
+		status, _, err := postLogin(stuID, encPwd, validate)
 		if err != nil {
+			log.Printf("[Captcha] 登录请求失败: %v", err)
 			continue
 		}
 		if status >= 300 && status < 400 {
-			return true
+			return nil
 		}
-		log.Printf("[Captcha] 带验证码登录仍失败: status=%d", status)
+		log.Printf("[Captcha] 带验证码登录失败: status=%d", status)
 	}
-	return false
+	return errors.New("验证码验证失败，请手动登录教务系统 https://jwxt.hbut.edu.cn 后重试")
 }
 
 // getCaptchaImages 获取验证码配置 + 图片 URL
