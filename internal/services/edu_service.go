@@ -139,19 +139,30 @@ func solveCaptchaAndLogin(stuID, encPwd string) error {
 func getCaptchaImages() (token, iv, shadeURL, cutoutURL string, err error) {
 	now := time.Now().UnixMilli()
 	confURL := fmt.Sprintf("https://captcha.chaoxing.com/captcha/get/conf?callback=cx_captcha_function&captchaId=%s&_=%d", captchaID, now)
-	resp, err := http.Get(confURL)
+	confReq, err := http.NewRequest("GET", confURL, nil)
+	if err != nil {
+		return "", "", "", "", err
+	}
+	confReq.Header.Set("Referer", "https://jwxt.hbut.edu.cn/")
+	resp, err := http.DefaultClient.Do(confReq)
 	if err != nil {
 		return "", "", "", "", err
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
 	bodyStr := string(body)
+	preview := bodyStr
+	if len(preview) > 500 {
+		preview = preview[:500]
+	}
+	log.Printf("[Captcha] config HTTP %d, body(len=%d): %s", resp.StatusCode, len(bodyStr), preview)
 
 	// 解析 JSONP: cx_captcha_function({...})
 	start := strings.Index(bodyStr, "(")
 	end := strings.LastIndex(bodyStr, ")")
 	if start == -1 || end == -1 {
-		return "", "", "", "", errors.New("解析 captcha config 失败")
+		log.Printf("[Captcha] 解析 captcha config 失败, content-type=%s", resp.Header.Get("Content-Type"))
+		return "", "", "", "", fmt.Errorf("解析 captcha config 失败, status=%d", resp.StatusCode)
 	}
 	var conf struct {
 		T int64 `json:"t"`
@@ -184,6 +195,7 @@ func getCaptchaImages() (token, iv, shadeURL, cutoutURL string, err error) {
 		return "", "", "", "", err
 	}
 	imgReq.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+		imgReq.Header.Set("Referer", "https://jwxt.hbut.edu.cn/")
 	imgResp, err := http.DefaultClient.Do(imgReq)
 	if err != nil {
 		return "", "", "", "", err
@@ -247,7 +259,12 @@ func submitCaptcha(token, iv string, x int) (string, error) {
 	params.Set("_", strconv.FormatInt(time.Now().UnixMilli(), 10))
 
 	checkURL := fmt.Sprintf("https://captcha.chaoxing.com/captcha/check/verification/result?%s", params.Encode())
-	resp, err := http.Get(checkURL)
+	checkReq, err := http.NewRequest("GET", checkURL, nil)
+	if err != nil {
+		return "", err
+	}
+	checkReq.Header.Set("Referer", "https://jwxt.hbut.edu.cn/")
+	resp, err := http.DefaultClient.Do(checkReq)
 	if err != nil {
 		return "", err
 	}
