@@ -204,11 +204,18 @@ func getCaptchaImages() (token, iv, shadeURL, cutoutURL string, err error) {
 	imgParams.Set("captchaKey", captchaKey)
 	imgParams.Set("token", token)
 	imgParams.Set("referer", loginURL)
+	imgParams.Set("jcaptchaDefect", "1")
 	imgParams.Set("iv", iv)
 	imgParams.Set("_", strconv.FormatInt(time.Now().UnixMilli(), 10))
 
-	imgURL := fmt.Sprintf("https://captcha.chaoxing.com/captcha/get/verification/image?%s", imgParams.Encode())
-	imgResp, err := http.Get(imgURL)
+	imgReq, err := http.NewRequest("POST",
+		"https://captcha.chaoxing.com/captcha/get/verification/image",
+		strings.NewReader(imgParams.Encode()))
+	if err != nil {
+		return "", "", "", "", err
+	}
+	imgReq.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+	imgResp, err := http.DefaultClient.Do(imgReq)
 	if err != nil {
 		return "", "", "", "", err
 	}
@@ -222,6 +229,7 @@ func getCaptchaImages() (token, iv, shadeURL, cutoutURL string, err error) {
 		return "", "", "", "", errors.New("解析 captcha image 失败")
 	}
 	var imgData struct {
+		Token               string `json:"token"`
 		ImageVerificationVo struct {
 			ShadeImage  string `json:"shadeImage"`
 			CutoutImage string `json:"cutoutImage"`
@@ -231,7 +239,12 @@ func getCaptchaImages() (token, iv, shadeURL, cutoutURL string, err error) {
 		return "", "", "", "", errors.New("解析 captcha image JSON 失败")
 	}
 
-	return token, iv, imgData.ImageVerificationVo.ShadeImage, imgData.ImageVerificationVo.CutoutImage, nil
+	// 返回图片响应中的 verifyToken（用于后续 submitCaptcha），而非原始 token
+	verifyToken := imgData.Token
+	if verifyToken == "" {
+		return "", "", "", "", errors.New("图片响应中未获取到 verifyToken")
+	}
+	return verifyToken, iv, imgData.ImageVerificationVo.ShadeImage, imgData.ImageVerificationVo.CutoutImage, nil
 }
 
 // solveGap 调用云函数 captcha 计算缺口距离
