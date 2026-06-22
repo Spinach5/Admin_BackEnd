@@ -122,6 +122,9 @@ func main() {
 			authorized.POST("/excel/preview", handlers.PreviewExcel())
 		}
 
+		// 内部端点（供云函数调用）
+		r.POST("/api/internal/captcha-solve", handlers.CaptchaSolve())
+
 		// V1 学生接口 (JWT)
 		v1 := r.Group("/api/v1")
 		{
