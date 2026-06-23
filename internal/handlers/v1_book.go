@@ -22,32 +22,53 @@ import (
 func V1GetBooks() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		category := c.Query("category")
-		var books []models.BookWithUser
-		var err error
-		if category != "" {
-			books, err = models.GetBooksByCategory(database.DB, category)
-		} else {
-			books, err = models.GetAllActiveBooks(database.DB)
+		keyword := c.Query("keyword")
+		schoolID := c.Query("school_id")
+		if schoolID == "" {
+			schoolID = "hbut"
 		}
+
+		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+		pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
+		if page < 1 {
+			page = 1
+		}
+		if pageSize < 1 || pageSize > 100 {
+			pageSize = 20
+		}
+
+		books, total, err := models.GetBooksPaginated(database.DB, category, keyword, schoolID, page, pageSize)
 		if err != nil {
 			log.Printf("V1获取书籍列表失败: %v", err)
 			dto.InternalError(c, "获取书籍列表失败")
 			return
 		}
-		dto.Success(c, books)
+
+		dto.SuccessWithTotal(c, books, total)
 	}
 }
 
 func V1GetMyBooks() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := middleware.GetStudentUserID(c)
-		books, err := models.GetBooksByUser(database.DB, userID)
+
+		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+		pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
+		if page < 1 {
+			page = 1
+		}
+		if pageSize < 1 || pageSize > 100 {
+			pageSize = 20
+		}
+
+		books, total, err := models.GetMyBooksPaginated(database.DB, userID, page, pageSize)
 		if err != nil {
 			log.Printf("V1获取我的书籍失败: %v", err)
 			dto.InternalError(c, "获取我的书籍失败")
 			return
 		}
-		dto.Success(c, books)
+
+		dto.SuccessWithTotal(c, books, total)
 	}
 }
 
@@ -58,12 +79,16 @@ func V1GetBookByID() gin.HandlerFunc {
 			dto.BadRequest(c, "无效的书籍ID")
 			return
 		}
-		book, err := models.GetBookByID(database.DB, id)
+
+		currentUserID := middleware.GetStudentUserID(c)
+
+		detail, err := models.GetBookDetail(database.DB, id, currentUserID)
 		if err != nil {
 			dto.Error(c, 404, "书籍不存在")
 			return
 		}
-		dto.Success(c, book)
+
+		dto.Success(c, detail)
 	}
 }
 
@@ -82,23 +107,41 @@ func V1CreateBook() gin.HandlerFunc {
 			return
 		}
 
-		title := c.PostForm("title")
+		title := strings.TrimSpace(c.PostForm("title"))
 		category := c.PostForm("category")
 		price := c.PostForm("price")
 		isbn := c.PostForm("isbn")
 		contact := c.PostForm("contact")
+		description := c.PostForm("description")
+		condition := c.PostForm("condition")
+		schoolID := c.PostForm("school_id")
+		if schoolID == "" {
+			schoolID = "hbut"
+		}
 
 		if title == "" {
 			dto.BadRequest(c, "书名不能为空")
 			return
 		}
 
-		if category != "" && !bookCategories[category] {
-			dto.BadRequest(c, "无效的书籍种类")
+		// Parse comma-separated image URLs
+		imageURLsRaw := c.PostForm("image_urls")
+		var imageURLs []string
+		if imageURLsRaw != "" {
+			for _, u := range strings.Split(imageURLsRaw, ",") {
+				u = strings.TrimSpace(u)
+				if u != "" {
+					imageURLs = append(imageURLs, u)
+				}
+			}
+		}
+		if len(imageURLs) > 3 {
+			dto.BadRequest(c, "最多上传3张图片")
 			return
 		}
 
-		var imageURL string
+		// Also support single legacy file upload
+		var firstImageURL string
 		file, err := c.FormFile("image")
 		if err == nil {
 			url, err := saveUploadedImage(c, file)
@@ -107,23 +150,40 @@ func V1CreateBook() gin.HandlerFunc {
 				dto.BadRequest(c, err.Error())
 				return
 			}
-			imageURL = url
+			firstImageURL = url
+			imageURLs = append([]string{url}, imageURLs...)
 		} else if err != http.ErrMissingFile {
 			log.Printf("V1读取上传文件失败: %v", err)
 		}
 
-		book := &models.Book{
-			Title:    title,
-			Category: strPtr(category),
-			ImageURL: strPtr(imageURL),
-			Price:    strPtr(price),
-			ISBN:     strPtr(isbn),
-			Contact:  strPtr(contact),
-			UserID:   userID,
-			Status:   "active",
+		if len(imageURLs) > 3 {
+			dto.BadRequest(c, "最多上传3张图片")
+			return
 		}
 
-		if err := models.CreateBook(database.DB, book); err != nil {
+		if len(imageURLs) > 0 {
+			firstImageURL = imageURLs[0]
+		}
+
+		if condition == "" {
+			condition = "几乎全新"
+		}
+
+		book := &models.Book{
+			Title:       title,
+			Category:    strPtr(category),
+			ImageURL:    strPtr(firstImageURL),
+			Price:       strPtr(price),
+			ISBN:        strPtr(isbn),
+			Contact:     strPtr(contact),
+			Description: strPtr(description),
+			Condition:   strPtr(condition),
+			SchoolID:    schoolID,
+			UserID:      userID,
+			Status:      "active",
+		}
+
+		if err := models.CreateBookWithImages(database.DB, book, imageURLs); err != nil {
 			log.Printf("V1添加书籍失败: %v", err)
 			dto.InternalError(c, "添加书籍失败")
 			return
@@ -152,23 +212,39 @@ func V1UpdateBook() gin.HandlerFunc {
 			return
 		}
 
-		title := c.PostForm("title")
+		title := strings.TrimSpace(c.PostForm("title"))
 		if title == "" {
 			dto.BadRequest(c, "书名不能为空")
 			return
 		}
 
 		category := c.PostForm("category")
-		if category != "" && !bookCategories[category] {
-			dto.BadRequest(c, "无效的书籍种类")
+
+		// Parse image URLs
+		imageURLsRaw := c.PostForm("image_urls")
+		var imageURLs []string
+		if imageURLsRaw != "" {
+			for _, u := range strings.Split(imageURLsRaw, ",") {
+				u = strings.TrimSpace(u)
+				if u != "" {
+					imageURLs = append(imageURLs, u)
+				}
+			}
+		}
+		if len(imageURLs) > 3 {
+			dto.BadRequest(c, "最多上传3张图片")
 			return
 		}
 
-		imageURL := ptrStrVal(existing.ImageURL)
-		if c.PostForm("delete_image") == "true" {
-			deleteImageFile(imageURL)
-			imageURL = ""
+		// If no new image_urls submitted, preserve existing images
+		if imageURLsRaw == "" {
+			existingImages, _ := models.GetBookImages(database.DB, id)
+			for _, img := range existingImages {
+				imageURLs = append(imageURLs, img.ImageURL)
+			}
 		}
+
+		// Legacy single file upload
 		file, err := c.FormFile("image")
 		if err == nil {
 			url, err := saveUploadedImage(c, file)
@@ -177,23 +253,44 @@ func V1UpdateBook() gin.HandlerFunc {
 				dto.BadRequest(c, err.Error())
 				return
 			}
-			imageURL = url
+			imageURLs = append([]string{url}, imageURLs...)
 		} else if err != http.ErrMissingFile {
 			log.Printf("V1读取上传文件失败: %v", err)
 		}
 
-		book := &models.Book{
-			BookID:   id,
-			Title:    title,
-			Category: strPtr(c.PostForm("category")),
-			ImageURL: strPtr(imageURL),
-			Price:    strPtr(c.PostForm("price")),
-			ISBN:     strPtr(c.PostForm("isbn")),
-			Contact:  strPtr(c.PostForm("contact")),
-			Status:   existing.Status,
+		if len(imageURLs) > 3 {
+			dto.BadRequest(c, "最多上传3张图片")
+			return
 		}
 
-		if err := models.UpdateBook(database.DB, book); err != nil {
+		firstImageURL := ""
+		if len(imageURLs) > 0 {
+			firstImageURL = imageURLs[0]
+		}
+
+		condition := c.PostForm("condition")
+		if condition == "" {
+			condition = ptrStrVal(existing.Condition)
+		}
+		description := c.PostForm("description")
+		if description == "" {
+			description = ptrStrVal(existing.Description)
+		}
+
+		book := &models.Book{
+			BookID:      id,
+			Title:       title,
+			Category:    strPtr(category),
+			ImageURL:    strPtr(firstImageURL),
+			Price:       strPtr(c.PostForm("price")),
+			ISBN:        strPtr(c.PostForm("isbn")),
+			Contact:     strPtr(c.PostForm("contact")),
+			Description: strPtr(description),
+			Condition:   strPtr(condition),
+			Status:      existing.Status,
+		}
+
+		if err := models.UpdateBookWithImages(database.DB, book, imageURLs); err != nil {
 			log.Printf("V1更新书籍失败: %v", err)
 			dto.InternalError(c, "更新书籍失败")
 			return
@@ -218,6 +315,102 @@ func V1DeleteBook() gin.HandlerFunc {
 		}
 
 		dto.SuccessMessage(c, "删除成功")
+	}
+}
+
+// V1UploadBookImage 独立上传书籍图片
+func V1UploadBookImage() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		file, err := c.FormFile("file")
+		if err != nil {
+			dto.BadRequest(c, "请选择图片文件")
+			return
+		}
+
+		url, err := saveUploadedImage(c, file)
+		if err != nil {
+			log.Printf("V1上传书籍图片失败: %v", err)
+			dto.BadRequest(c, err.Error())
+			return
+		}
+
+		dto.Success(c, gin.H{"url": url})
+	}
+}
+
+// V1DeleteBookImage 删除单张书籍图片
+func V1DeleteBookImage() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := middleware.GetStudentUserID(c)
+		imageID, err := strconv.Atoi(c.Param("imageId"))
+		if err != nil {
+			dto.BadRequest(c, "无效的图片ID")
+			return
+		}
+
+		img, err := models.GetBookImageByID(database.DB, imageID)
+		if err != nil {
+			dto.Error(c, 404, "图片不存在")
+			return
+		}
+
+		// Verify ownership through book
+		book, err := models.GetBookByID(database.DB, img.BookID)
+		if err != nil {
+			dto.Error(c, 404, "书籍不存在")
+			return
+		}
+		if book.UserID != userID {
+			dto.Forbidden(c, "只能删除自己的图片")
+			return
+		}
+
+		// Delete file from disk
+		deleteImageFile(img.ImageURL)
+
+		// Delete DB record
+		if err := models.DeleteBookImage(database.DB, imageID); err != nil {
+			log.Printf("V1删除书籍图片失败: %v", err)
+			dto.InternalError(c, "删除图片失败")
+			return
+		}
+
+		dto.SuccessMessage(c, "删除成功")
+	}
+}
+
+// V1ToggleWant 切换想要状态
+func V1ToggleWant() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := middleware.GetStudentUserID(c)
+		bookID, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			dto.BadRequest(c, "无效的书籍ID")
+			return
+		}
+
+		// Verify book exists and is active
+		book, err := models.GetBookByID(database.DB, bookID)
+		if err != nil {
+			dto.Error(c, 404, "书籍不存在")
+			return
+		}
+		if book.Status != "active" {
+			dto.BadRequest(c, "该书籍已下架")
+			return
+		}
+
+		wanted, wantCount, err := models.ToggleWant(database.DB, bookID, userID)
+		if err != nil {
+			log.Printf("V1切换想要失败: %v", err)
+			dto.InternalError(c, "操作失败")
+			return
+		}
+
+		dto.Success(c, gin.H{
+			"wanted":     wanted,
+			"want_count": wantCount,
+		})
 	}
 }
 
@@ -247,4 +440,3 @@ func saveUploadedImage(c *gin.Context, file *multipart.FileHeader) (string, erro
 
 	return "/uploads/" + filename, nil
 }
-
