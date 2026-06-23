@@ -416,6 +416,8 @@ func V1UploadBookImage() gin.HandlerFunc {
 			return
 		}
 
+		log.Printf("V1上传图片: name=%s, size=%d, header=%v", file.Filename, file.Size, file.Header)
+
 		url, err := saveUploadedImage(c, file)
 		if err != nil {
 			log.Printf("V1上传书籍图片失败: %v", err)
@@ -507,7 +509,11 @@ func saveUploadedImage(c *gin.Context, file *multipart.FileHeader) (string, erro
 	ext := strings.ToLower(filepath.Ext(file.Filename))
 	allowed := map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".webp": true}
 	if !allowed[ext] {
-		return "", fmt.Errorf("不支持的图片格式，仅支持 jpg/jpeg/png/webp")
+		// Extension missing or unknown — try MIME type from Content-Type header
+		ext = extByMIME(file.Header.Get("Content-Type"))
+		if !allowed[ext] {
+			return "", fmt.Errorf("不支持的图片格式，仅支持 jpg/jpeg/png/webp")
+		}
 	}
 
 	if file.Size > 5<<20 {
@@ -528,4 +534,17 @@ func saveUploadedImage(c *gin.Context, file *multipart.FileHeader) (string, erro
 	}
 
 	return "/uploads/" + filename, nil
+}
+
+func extByMIME(mime string) string {
+	switch mime {
+	case "image/jpeg":
+		return ".jpg"
+	case "image/png":
+		return ".png"
+	case "image/webp":
+		return ".webp"
+	default:
+		return ""
+	}
 }
