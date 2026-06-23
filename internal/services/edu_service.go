@@ -2,13 +2,13 @@ package services
 
 import (
 	"crypto/md5"
+	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -300,9 +300,9 @@ func submitCaptcha(token, iv string, x int) (string, error) {
 	}
 
 	var result struct {
-		Result    bool        `json:"result"`
-		Code      any `json:"code"`
-		ExtraData any `json:"extraData"`
+		Result    bool `json:"result"`
+		Code      any  `json:"code"`
+		ExtraData any  `json:"extraData"`
 	}
 	if err := json.Unmarshal([]byte(bodyStr[start+1:end]), &result); err != nil {
 		return "", fmt.Errorf("解析 captcha result JSON 失败: %w", err)

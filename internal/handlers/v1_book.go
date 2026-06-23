@@ -219,6 +219,9 @@ func V1UpdateBook() gin.HandlerFunc {
 		}
 
 		category := c.PostForm("category")
+		if category == "" {
+			category = ptrStrVal(existing.Category)
+		}
 
 		// Parse image URLs
 		imageURLsRaw := c.PostForm("image_urls")
