@@ -209,7 +209,26 @@ var bookCategories = func() map[string]bool {
 // GetBookCategories 获取书籍种类列表
 func GetBookCategories() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		dto.Success(c, BookCategoryList)
+		schoolID := c.Query("school_id")
+		if schoolID == "" {
+			schoolID = "hbut"
+		}
+
+		categories, err := models.GetBookCategories(database.DB, schoolID)
+		if err != nil {
+			log.Printf("获取书籍种类失败: %v", err)
+			dto.InternalError(c, "获取书籍种类失败")
+			return
+		}
+
+		// Build string list with "全部" prepended for frontend filter bar
+		names := make([]string, 0, len(categories)+1)
+		names = append(names, "全部")
+		for _, cat := range categories {
+			names = append(names, cat.Name)
+		}
+
+		dto.Success(c, names)
 	}
 }
 
@@ -244,4 +263,92 @@ func ptrStrVal(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+// CreateBookCategory 添加书籍种类 (admin)
+func CreateBookCategory() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req struct {
+			Name      string `json:"name"`
+			SchoolID  string `json:"school_id"`
+			SortOrder int    `json:"sort_order"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			dto.BadRequest(c, "参数错误")
+			return
+		}
+		if req.Name == "" {
+			dto.BadRequest(c, "种类名称不能为空")
+			return
+		}
+		if req.SchoolID == "" {
+			req.SchoolID = "hbut"
+		}
+
+		cat := &models.BookCategory{
+			Name:      req.Name,
+			SchoolID:  req.SchoolID,
+			SortOrder: req.SortOrder,
+		}
+		if err := models.CreateBookCategory(database.DB, cat); err != nil {
+			log.Printf("添加书籍种类失败: %v", err)
+			dto.InternalError(c, "添加书籍种类失败")
+			return
+		}
+		dto.SuccessMessage(c, "添加种类成功")
+	}
+}
+
+// UpdateBookCategory 更新书籍种类 (admin)
+func UpdateBookCategory() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			dto.BadRequest(c, "无效的种类ID")
+			return
+		}
+
+		var req struct {
+			Name      string `json:"name"`
+			SortOrder int    `json:"sort_order"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			dto.BadRequest(c, "参数错误")
+			return
+		}
+		if req.Name == "" {
+			dto.BadRequest(c, "种类名称不能为空")
+			return
+		}
+
+		cat := &models.BookCategory{
+			ID:        id,
+			Name:      req.Name,
+			SortOrder: req.SortOrder,
+		}
+		if err := models.UpdateBookCategory(database.DB, cat); err != nil {
+			log.Printf("更新书籍种类失败: %v", err)
+			dto.InternalError(c, "更新书籍种类失败")
+			return
+		}
+		dto.SuccessMessage(c, "更新种类成功")
+	}
+}
+
+// DeleteBookCategory 删除书籍种类 (admin)
+func DeleteBookCategory() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			dto.BadRequest(c, "无效的种类ID")
+			return
+		}
+
+		if err := models.DeleteBookCategory(database.DB, id); err != nil {
+			log.Printf("删除书籍种类失败: %v", err)
+			dto.InternalError(c, "删除书籍种类失败")
+			return
+		}
+		dto.SuccessMessage(c, "删除种类成功")
+	}
 }
