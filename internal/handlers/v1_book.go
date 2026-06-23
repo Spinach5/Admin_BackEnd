@@ -107,20 +107,64 @@ func V1CreateBook() gin.HandlerFunc {
 			return
 		}
 
-		title := strings.TrimSpace(c.PostForm("title"))
-		category := c.PostForm("category")
-		price := c.PostForm("price")
-		isbn := c.PostForm("isbn")
-		contact := c.PostForm("contact")
-		description := c.PostForm("description")
-		condition := c.PostForm("condition")
-		schoolID := c.PostForm("school_id")
+		// Accept JSON or form data
+		var title, category, price, isbn, contact, description, condition, schoolID string
+		var isDelivery int
+		var imageURLs []string
+
+		contentType := c.ContentType()
+		if contentType == "application/json" {
+			var req struct {
+				Name        string   `json:"name"`
+				Category    string   `json:"category"`
+				Price       string   `json:"price"`
+				ISBN        string   `json:"isbn"`
+				Contact     string   `json:"contact"`
+				Description string   `json:"description"`
+				Condition   string   `json:"condition"`
+				SchoolID    string   `json:"school_id"`
+				IsDelivery  int      `json:"is_delivery"`
+				Images      []string `json:"images"`
+			}
+			if err := c.ShouldBindJSON(&req); err != nil {
+				dto.BadRequest(c, "参数错误")
+				return
+			}
+			title = strings.TrimSpace(req.Name)
+			category = req.Category
+			price = req.Price
+			isbn = req.ISBN
+			contact = req.Contact
+			description = req.Description
+			condition = req.Condition
+			schoolID = req.SchoolID
+			isDelivery = req.IsDelivery
+			imageURLs = req.Images
+		} else {
+			title = strings.TrimSpace(c.PostForm("title"))
+			category = c.PostForm("category")
+			price = c.PostForm("price")
+			isbn = c.PostForm("isbn")
+			contact = c.PostForm("contact")
+			description = c.PostForm("description")
+			condition = c.PostForm("condition")
+			schoolID = c.PostForm("school_id")
+			if c.PostForm("is_delivery") == "1" {
+				isDelivery = 1
+			}
+			imageURLsRaw := c.PostForm("image_urls")
+			if imageURLsRaw != "" {
+				for _, u := range strings.Split(imageURLsRaw, ",") {
+					u = strings.TrimSpace(u)
+					if u != "" {
+						imageURLs = append(imageURLs, u)
+					}
+				}
+			}
+		}
+
 		if schoolID == "" {
 			schoolID = "hbut"
-		}
-		isDelivery := 0
-		if c.PostForm("is_delivery") == "1" {
-			isDelivery = 1
 		}
 
 		if title == "" {
@@ -128,36 +172,27 @@ func V1CreateBook() gin.HandlerFunc {
 			return
 		}
 
-		// Parse comma-separated image URLs
-		imageURLsRaw := c.PostForm("image_urls")
-		var imageURLs []string
-		if imageURLsRaw != "" {
-			for _, u := range strings.Split(imageURLsRaw, ",") {
-				u = strings.TrimSpace(u)
-				if u != "" {
-					imageURLs = append(imageURLs, u)
-				}
-			}
-		}
 		if len(imageURLs) > 3 {
 			dto.BadRequest(c, "最多上传3张图片")
 			return
 		}
 
-		// Also support single legacy file upload
+		// Also support single legacy file upload (form data only)
 		var firstImageURL string
-		file, err := c.FormFile("image")
-		if err == nil {
-			url, err := saveUploadedImage(c, file)
-			if err != nil {
-				log.Printf("V1图片上传失败: %v", err)
-				dto.BadRequest(c, err.Error())
-				return
+		if contentType != "application/json" {
+			file, err := c.FormFile("image")
+			if err == nil {
+				url, err := saveUploadedImage(c, file)
+				if err != nil {
+					log.Printf("V1图片上传失败: %v", err)
+					dto.BadRequest(c, err.Error())
+					return
+				}
+				firstImageURL = url
+				imageURLs = append([]string{url}, imageURLs...)
+			} else if err != http.ErrMissingFile {
+				log.Printf("V1读取上传文件失败: %v", err)
 			}
-			firstImageURL = url
-			imageURLs = append([]string{url}, imageURLs...)
-		} else if err != http.ErrMissingFile {
-			log.Printf("V1读取上传文件失败: %v", err)
 		}
 
 		if len(imageURLs) > 3 {
@@ -217,53 +252,107 @@ func V1UpdateBook() gin.HandlerFunc {
 			return
 		}
 
-		title := strings.TrimSpace(c.PostForm("title"))
+		var title, category, price, isbn, contact, description, condition string
+		var isDelivery int
+		var imageURLs []string
+
+		contentType := c.ContentType()
+		if contentType == "application/json" {
+			var req struct {
+				Name        string   `json:"name"`
+				Category    string   `json:"category"`
+				Price       string   `json:"price"`
+				ISBN        string   `json:"isbn"`
+				Contact     string   `json:"contact"`
+				Description string   `json:"description"`
+				Condition   string   `json:"condition"`
+				IsDelivery  int      `json:"is_delivery"`
+				Images      []string `json:"images"`
+			}
+			if err := c.ShouldBindJSON(&req); err != nil {
+				dto.BadRequest(c, "参数错误")
+				return
+			}
+			title = strings.TrimSpace(req.Name)
+			category = req.Category
+			price = req.Price
+			isbn = req.ISBN
+			contact = req.Contact
+			description = req.Description
+			condition = req.Condition
+			isDelivery = req.IsDelivery
+			imageURLs = req.Images
+		} else {
+			title = strings.TrimSpace(c.PostForm("title"))
+			category = c.PostForm("category")
+			price = c.PostForm("price")
+			isbn = c.PostForm("isbn")
+			contact = c.PostForm("contact")
+			description = c.PostForm("description")
+			condition = c.PostForm("condition")
+			if c.PostForm("is_delivery") != "" {
+				if c.PostForm("is_delivery") == "1" {
+					isDelivery = 1
+				} else {
+					isDelivery = 0
+				}
+			} else {
+				isDelivery = existing.IsDelivery
+			}
+			imageURLsRaw := c.PostForm("image_urls")
+			if imageURLsRaw != "" {
+				for _, u := range strings.Split(imageURLsRaw, ",") {
+					u = strings.TrimSpace(u)
+					if u != "" {
+						imageURLs = append(imageURLs, u)
+					}
+				}
+			}
+		}
+
 		if title == "" {
 			dto.BadRequest(c, "书名不能为空")
 			return
 		}
 
-		category := c.PostForm("category")
+		// Fallbacks to existing values
 		if category == "" {
 			category = ptrStrVal(existing.Category)
 		}
-
-		// Parse image URLs
-		imageURLsRaw := c.PostForm("image_urls")
-		var imageURLs []string
-		if imageURLsRaw != "" {
-			for _, u := range strings.Split(imageURLsRaw, ",") {
-				u = strings.TrimSpace(u)
-				if u != "" {
-					imageURLs = append(imageURLs, u)
-				}
-			}
+		if condition == "" {
+			condition = ptrStrVal(existing.Condition)
 		}
-		if len(imageURLs) > 3 {
-			dto.BadRequest(c, "最多上传3张图片")
-			return
+		if description == "" {
+			description = ptrStrVal(existing.Description)
 		}
 
-		// If no new image_urls submitted, preserve existing images
-		if imageURLsRaw == "" {
+		// If no images submitted, preserve existing
+		if len(imageURLs) == 0 {
 			existingImages, _ := models.GetBookImages(database.DB, id)
 			for _, img := range existingImages {
 				imageURLs = append(imageURLs, img.ImageURL)
 			}
 		}
 
-		// Legacy single file upload
-		file, err := c.FormFile("image")
-		if err == nil {
-			url, err := saveUploadedImage(c, file)
-			if err != nil {
-				log.Printf("V1图片上传失败: %v", err)
-				dto.BadRequest(c, err.Error())
-				return
+		if len(imageURLs) > 3 {
+			dto.BadRequest(c, "最多上传3张图片")
+			return
+		}
+
+		// Legacy single file upload (form data only)
+		if contentType != "application/json" {
+			file, err := c.FormFile("image")
+			if err == nil {
+				url, err := saveUploadedImage(c, file)
+				if err != nil {
+					log.Printf("V1图片上传失败: %v", err)
+					dto.BadRequest(c, err.Error())
+					return
+				}
+				imageURLs = append([]string{url}, imageURLs...)
+			} else if err != http.ErrMissingFile {
+				log.Printf("V1读取上传文件失败: %v", err)
 			}
-			imageURLs = append([]string{url}, imageURLs...)
-		} else if err != http.ErrMissingFile {
-			log.Printf("V1读取上传文件失败: %v", err)
 		}
 
 		if len(imageURLs) > 3 {
@@ -276,31 +365,14 @@ func V1UpdateBook() gin.HandlerFunc {
 			firstImageURL = imageURLs[0]
 		}
 
-		condition := c.PostForm("condition")
-		if condition == "" {
-			condition = ptrStrVal(existing.Condition)
-		}
-		description := c.PostForm("description")
-		if description == "" {
-			description = ptrStrVal(existing.Description)
-		}
-		isDelivery := existing.IsDelivery
-		if c.PostForm("is_delivery") != "" {
-			if c.PostForm("is_delivery") == "1" {
-				isDelivery = 1
-			} else {
-				isDelivery = 0
-			}
-		}
-
 		book := &models.Book{
 			BookID:      id,
 			Title:       title,
 			Category:    strPtr(category),
 			ImageURL:    strPtr(firstImageURL),
-			Price:       strPtr(c.PostForm("price")),
-			ISBN:        strPtr(c.PostForm("isbn")),
-			Contact:     strPtr(c.PostForm("contact")),
+			Price:       strPtr(price),
+			ISBN:        strPtr(isbn),
+			Contact:     strPtr(contact),
 			Description: strPtr(description),
 			Condition:   strPtr(condition),
 			IsDelivery:  isDelivery,
