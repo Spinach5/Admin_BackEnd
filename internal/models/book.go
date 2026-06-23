@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -216,10 +217,16 @@ func GetBookDetail(db *sqlx.DB, bookID, currentUserID int) (*BookDetail, error) 
 		detail.Images = []BookImage{}
 	}
 
-	db.Get(&detail.WantCount, "SELECT COUNT(*) FROM book_wants WHERE book_id = ?", bookID)
+	var wantCount int
+	if err := db.Get(&wantCount, "SELECT COUNT(*) FROM book_wants WHERE book_id = ?", bookID); err != nil {
+		log.Printf("GetBookDetail: want_count query failed for book %d: %v", bookID, err)
+	}
+	detail.WantCount = wantCount
 
 	var isWanted bool
-	db.Get(&isWanted, "SELECT COUNT(*) > 0 FROM book_wants WHERE book_id = ? AND user_id = ?", bookID, currentUserID)
+	if err := db.Get(&isWanted, "SELECT COUNT(*) > 0 FROM book_wants WHERE book_id = ? AND user_id = ?", bookID, currentUserID); err != nil {
+		log.Printf("GetBookDetail: is_wanted query failed for book %d user %d: %v", bookID, currentUserID, err)
+	}
 	detail.IsWanted = isWanted
 
 	return &detail, nil
@@ -263,7 +270,13 @@ func ClearBookImages(db *sqlx.DB, bookID int) error {
 // ---- Create / Update with images ----
 
 func CreateBookWithImages(db *sqlx.DB, b *Book, imageURLs []string) error {
-	result, err := db.Exec(`INSERT INTO book (title, category, image_url, price, isbn, contact, user_id, status, description, `+"`condition`"+`, school_id)
+	tx, err := db.Beginx()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	result, err := tx.Exec(`INSERT INTO book (title, category, image_url, price, isbn, contact, user_id, status, description, `+"`condition`"+`, school_id)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		b.Title, b.Category, b.ImageURL, b.Price, b.ISBN, b.Contact, b.UserID, b.Status, b.Description, b.Condition, b.SchoolID)
 	if err != nil {
@@ -276,50 +289,69 @@ func CreateBookWithImages(db *sqlx.DB, b *Book, imageURLs []string) error {
 	}
 
 	for i, url := range imageURLs {
-		if err := InsertBookImage(db, int(bookID), url, i); err != nil {
+		if _, err := tx.Exec("INSERT INTO book_images (book_id, image_url, sort_order) VALUES (?, ?, ?)", bookID, url, i); err != nil {
 			return err
 		}
 	}
 
-	return nil
+	return tx.Commit()
 }
 
 func UpdateBookWithImages(db *sqlx.DB, b *Book, imageURLs []string) error {
-	_, err := db.Exec(`UPDATE book SET title=?, category=?, image_url=?, price=?, isbn=?, contact=?, status=?, description=?, `+"`condition`"+`=?
+	tx, err := db.Beginx()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	_, err = tx.Exec(`UPDATE book SET title=?, category=?, image_url=?, price=?, isbn=?, contact=?, status=?, description=?, `+"`condition`"+`=?
 		WHERE book_id=?`,
 		b.Title, b.Category, b.ImageURL, b.Price, b.ISBN, b.Contact, b.Status, b.Description, b.Condition, b.BookID)
 	if err != nil {
 		return err
 	}
 
-	if err := ClearBookImages(db, b.BookID); err != nil {
+	if _, err := tx.Exec("DELETE FROM book_images WHERE book_id = ?", b.BookID); err != nil {
 		return err
 	}
 
 	for i, url := range imageURLs {
-		if err := InsertBookImage(db, b.BookID, url, i); err != nil {
+		if _, err := tx.Exec("INSERT INTO book_images (book_id, image_url, sort_order) VALUES (?, ?, ?)", b.BookID, url, i); err != nil {
 			return err
 		}
 	}
 
-	return nil
+	return tx.Commit()
 }
 
 // ---- Want toggle ----
 
 func ToggleWant(db *sqlx.DB, bookID, userID int) (wanted bool, wantCount int, err error) {
-	// Try insert first
 	_, err = db.Exec("INSERT INTO book_wants (book_id, user_id) VALUES (?, ?)", bookID, userID)
 	if err == nil {
-		// Insert succeeded — now wanted
 		db.Get(&wantCount, "SELECT COUNT(*) FROM book_wants WHERE book_id = ?", bookID)
 		return true, wantCount, nil
 	}
 
-	// Insert failed (likely duplicate) — delete instead
-	db.Exec("DELETE FROM book_wants WHERE book_id = ? AND user_id = ?", bookID, userID)
-	db.Get(&wantCount, "SELECT COUNT(*) FROM book_wants WHERE book_id = ?", bookID)
-	return false, wantCount, nil
+	// Check for duplicate key error (MySQL errno 1062)
+	if isDuplicateKeyError(err) {
+		db.Exec("DELETE FROM book_wants WHERE book_id = ? AND user_id = ?", bookID, userID)
+		db.Get(&wantCount, "SELECT COUNT(*) FROM book_wants WHERE book_id = ?", bookID)
+		return false, wantCount, nil
+	}
+
+	return false, 0, err
+}
+
+func isDuplicateKeyError(err error) bool {
+	if err == nil {
+		return false
+	}
+	// mysql driver returns *mysql.MySQLError for server errors
+	if mysqlErr, ok := err.(interface{ Number() uint16 }); ok {
+		return mysqlErr.Number() == 1062
+	}
+	return false
 }
 
 // ---- Book categories from DB ----
