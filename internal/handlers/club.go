@@ -23,6 +23,7 @@ func GetClubs() gin.HandlerFunc {
 			dto.InternalError(c, "获取社团列表失败")
 			return
 		}
+		fixClubImageURLs(clubs)
 		dto.Success(c, clubs)
 	}
 }
@@ -53,6 +54,9 @@ func GetClubByID() gin.HandlerFunc {
 			log.Printf("获取社团详情失败 id=%d: %v", id, err)
 			dto.Error(c, 200, "社团不存在")
 			return
+		}
+		if club.ImageURL != nil {
+			club.ImageURL = strPtr(ToAbsoluteURL(ptrStrVal(club.ImageURL)))
 		}
 		dto.Success(c, club)
 	}
@@ -204,6 +208,7 @@ func V1GetClubs() gin.HandlerFunc {
 			dto.InternalError(c, "获取社团列表失败")
 			return
 		}
+		fixClubImageURLs(clubs)
 		dto.Success(c, clubs)
 	}
 }
@@ -234,6 +239,9 @@ func V1GetClubByID() gin.HandlerFunc {
 			log.Printf("获取社团详情失败 id=%d: %v", id, err)
 			dto.Error(c, 200, "社团不存在")
 			return
+		}
+		if club.ImageURL != nil {
+			club.ImageURL = strPtr(ToAbsoluteURL(ptrStrVal(club.ImageURL)))
 		}
 		dto.Success(c, club)
 	}

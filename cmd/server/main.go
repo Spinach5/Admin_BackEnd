@@ -17,6 +17,8 @@ import (
 func main() {
 	cfg := config.Load()
 
+	handlers.SetBaseURL(cfg.BaseURL)
+
 	gin.SetMode(cfg.GinMode)
 
 	database.Connect(cfg)

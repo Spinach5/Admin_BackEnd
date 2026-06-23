@@ -20,6 +20,7 @@ type Config struct {
 	JWTExpireHours string
 	FrontendURLs   []string
 	UploadDir      string
+	BaseURL        string
 }
 
 func Load() *Config {
@@ -38,6 +39,7 @@ func Load() *Config {
 		JWTExpireHours: getEnv("JWT_EXPIRE_HOURS", "24"),
 		FrontendURLs:   getEnvAsSlice("FRONTEND_URLS", "FRONTEND_URL"),
 		UploadDir:      getEnv("UPLOAD_DIR", "./uploads"),
+		BaseURL:        getEnv("BASE_URL", ""),
 	}
 }
 

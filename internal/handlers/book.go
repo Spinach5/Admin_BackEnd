@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"web-backend/internal/database"
 	"web-backend/internal/dto"
@@ -24,6 +25,7 @@ func GetBooks() gin.HandlerFunc {
 			dto.InternalError(c, "获取书籍列表失败")
 			return
 		}
+		fixBookImageURLs(books)
 		dto.Success(c, books)
 	}
 }
@@ -40,6 +42,9 @@ func GetBookByID() gin.HandlerFunc {
 		if err != nil {
 			dto.Error(c, 404, "书籍不存在")
 			return
+		}
+		if book.ImageURL != nil {
+			book.ImageURL = strPtr(ToAbsoluteURL(ptrStrVal(book.ImageURL)))
 		}
 		dto.Success(c, book)
 	}
@@ -263,6 +268,56 @@ func ptrStrVal(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+// ---- Image URL resolution ----
+
+var BaseURL string
+
+// SetBaseURL sets the base URL used to convert relative image paths to absolute URLs.
+func SetBaseURL(url string) {
+	BaseURL = strings.TrimRight(url, "/")
+}
+
+// ToAbsoluteURL converts a relative path (e.g. /uploads/foo.jpg) to an absolute URL
+// when BaseURL is configured. If the path is already absolute or BaseURL is empty,
+// the path is returned unchanged.
+func ToAbsoluteURL(path string) string {
+	if BaseURL == "" || path == "" {
+		return path
+	}
+	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
+		return path
+	}
+	return BaseURL + path
+}
+
+// fixBookImageURLs converts relative image URLs in a book list to absolute URLs.
+func fixBookImageURLs(books []models.BookWithUser) {
+	for i := range books {
+		if books[i].ImageURL != nil {
+			books[i].ImageURL = strPtr(ToAbsoluteURL(ptrStrVal(books[i].ImageURL)))
+		}
+	}
+}
+
+// fixBookDetailImageURLs converts relative image URLs in a book detail to absolute URLs.
+func fixBookDetailImageURLs(detail *models.BookDetail) {
+	if detail.ImageURL != nil {
+		detail.ImageURL = strPtr(ToAbsoluteURL(ptrStrVal(detail.ImageURL)))
+	}
+	for i := range detail.Images {
+		detail.Images[i].ImageURL = ToAbsoluteURL(detail.Images[i].ImageURL)
+	}
+}
+
+// fixClubImageURLs converts relative image URLs in a club list to absolute URLs.
+func fixClubImageURLs(clubs []models.ClubWithPrincipal) {
+	for i := range clubs {
+		if clubs[i].ImageURL != nil {
+			clubs[i].ImageURL = strPtr(ToAbsoluteURL(ptrStrVal(clubs[i].ImageURL)))
+		}
+	}
 }
 
 // CreateBookCategory 添加书籍种类 (admin)

@@ -44,6 +44,7 @@ func V1GetBooks() gin.HandlerFunc {
 			return
 		}
 
+		fixBookImageURLs(books)
 		dto.SuccessWithTotal(c, books, total)
 	}
 }
@@ -68,6 +69,7 @@ func V1GetMyBooks() gin.HandlerFunc {
 			return
 		}
 
+		fixBookImageURLs(books)
 		dto.SuccessWithTotal(c, books, total)
 	}
 }
@@ -88,6 +90,7 @@ func V1GetBookByID() gin.HandlerFunc {
 			return
 		}
 
+		fixBookDetailImageURLs(detail)
 		dto.Success(c, detail)
 	}
 }
@@ -533,7 +536,7 @@ func saveUploadedImage(c *gin.Context, file *multipart.FileHeader) (string, erro
 		return "", fmt.Errorf("保存文件失败: %w", err)
 	}
 
-	return "/uploads/" + filename, nil
+	return ToAbsoluteURL("/uploads/" + filename), nil
 }
 
 func extByMIME(mime string) string {
