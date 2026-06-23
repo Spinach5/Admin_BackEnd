@@ -79,6 +79,9 @@ func main() {
 
 			// 书籍管理
 			authorized.GET("/books/categories", handlers.GetBookCategories())
+			authorized.POST("/books/categories", handlers.CreateBookCategory())
+			authorized.PUT("/books/categories/:id", handlers.UpdateBookCategory())
+			authorized.DELETE("/books/categories/:id", handlers.DeleteBookCategory())
 			authorized.GET("/books", handlers.GetBooks())
 			authorized.GET("/books/:id", handlers.GetBookByID())
 			authorized.POST("/books", handlers.CreateBook())
@@ -144,6 +147,9 @@ func main() {
 				v1Auth.POST("/books", handlers.V1CreateBook())
 				v1Auth.PUT("/books/:id", handlers.V1UpdateBook())
 				v1Auth.DELETE("/books/:id", handlers.V1DeleteBook())
+				v1Auth.POST("/books/upload-image", handlers.V1UploadBookImage())
+				v1Auth.DELETE("/books/images/:imageId", handlers.V1DeleteBookImage())
+				v1Auth.POST("/books/:id/want", handlers.V1ToggleWant())
 				v1Auth.GET("/foods", handlers.V1GetFoods())
 				v1Auth.GET("/foods/filters", handlers.V1GetFoodFilters())
 			}
