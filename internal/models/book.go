@@ -130,11 +130,9 @@ type BookCategory struct {
 
 type BookDetail struct {
 	BookWithUser
-	Description string      `db:"description" json:"description"`
-	Condition   string      `db:"condition" json:"condition"`
-	Images      []BookImage `json:"images"`
-	WantCount   int         `json:"want_count"`
-	IsWanted    bool        `json:"is_wanted"`
+	Images    []BookImage `json:"images"`
+	WantCount int         `json:"want_count"`
+	IsWanted  bool        `json:"is_wanted"`
 }
 
 // ---- Paginated list with search ----
