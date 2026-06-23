@@ -148,6 +148,7 @@ func main() {
 				v1Auth.PUT("/books/:id", handlers.V1UpdateBook())
 				v1Auth.DELETE("/books/:id", handlers.V1DeleteBook())
 				v1Auth.POST("/books/upload-image", handlers.V1UploadBookImage())
+				v1Auth.POST("/books/upload", handlers.V1UploadBookImage())
 				v1Auth.DELETE("/books/images/:imageId", handlers.V1DeleteBookImage())
 				v1Auth.POST("/books/:id/want", handlers.V1ToggleWant())
 				v1Auth.GET("/foods", handlers.V1GetFoods())
