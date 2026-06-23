@@ -29,8 +29,9 @@ type Book struct {
 
 type BookWithUser struct {
 	Book
-	NickName string `db:"nickName" json:"nickName"`
-	StuID    string `db:"stuId" json:"stuId"`
+	NickName   string `db:"nickName" json:"nickName"`
+	StuID      string `db:"stuId" json:"stuId"`
+	IsDelivery int    `db:"is_delivery" json:"is_delivery"`
 }
 
 func GetAllBooks(db *sqlx.DB) ([]BookWithUser, error) {
