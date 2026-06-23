@@ -118,6 +118,10 @@ func V1CreateBook() gin.HandlerFunc {
 		if schoolID == "" {
 			schoolID = "hbut"
 		}
+		isDelivery := 0
+		if c.PostForm("is_delivery") == "1" {
+			isDelivery = 1
+		}
 
 		if title == "" {
 			dto.BadRequest(c, "书名不能为空")
@@ -179,6 +183,7 @@ func V1CreateBook() gin.HandlerFunc {
 			Description: strPtr(description),
 			Condition:   strPtr(condition),
 			SchoolID:    schoolID,
+			IsDelivery:  isDelivery,
 			UserID:      userID,
 			Status:      "active",
 		}
@@ -279,6 +284,14 @@ func V1UpdateBook() gin.HandlerFunc {
 		if description == "" {
 			description = ptrStrVal(existing.Description)
 		}
+		isDelivery := existing.IsDelivery
+		if c.PostForm("is_delivery") != "" {
+			if c.PostForm("is_delivery") == "1" {
+				isDelivery = 1
+			} else {
+				isDelivery = 0
+			}
+		}
 
 		book := &models.Book{
 			BookID:      id,
@@ -290,6 +303,7 @@ func V1UpdateBook() gin.HandlerFunc {
 			Contact:     strPtr(c.PostForm("contact")),
 			Description: strPtr(description),
 			Condition:   strPtr(condition),
+			IsDelivery:  isDelivery,
 			Status:      existing.Status,
 		}
 

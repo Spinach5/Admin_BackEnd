@@ -20,6 +20,7 @@ type Book struct {
 	Description      *string `db:"description" json:"description"`
 	Condition        *string `db:"condition" json:"condition"`
 	SchoolID         string  `db:"school_id" json:"school_id"`
+	IsDelivery       int     `db:"is_delivery" json:"is_delivery"`
 	UserID           int     `db:"user_id" json:"user_id"`
 	Status           string  `db:"status" json:"status"`
 	CreateTime       string  `db:"create_time" json:"create_time"`
@@ -276,9 +277,9 @@ func CreateBookWithImages(db *sqlx.DB, b *Book, imageURLs []string) error {
 	}
 	defer tx.Rollback()
 
-	result, err := tx.Exec(`INSERT INTO book (title, category, image_url, price, isbn, contact, user_id, status, description, `+"`condition`"+`, school_id)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		b.Title, b.Category, b.ImageURL, b.Price, b.ISBN, b.Contact, b.UserID, b.Status, b.Description, b.Condition, b.SchoolID)
+	result, err := tx.Exec(`INSERT INTO book (title, category, image_url, price, isbn, contact, user_id, status, description, `+"`condition`"+`, school_id, is_delivery)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		b.Title, b.Category, b.ImageURL, b.Price, b.ISBN, b.Contact, b.UserID, b.Status, b.Description, b.Condition, b.SchoolID, b.IsDelivery)
 	if err != nil {
 		return err
 	}
@@ -304,9 +305,9 @@ func UpdateBookWithImages(db *sqlx.DB, b *Book, imageURLs []string) error {
 	}
 	defer tx.Rollback()
 
-	_, err = tx.Exec(`UPDATE book SET title=?, category=?, image_url=?, price=?, isbn=?, contact=?, status=?, description=?, `+"`condition`"+`=?
+	_, err = tx.Exec(`UPDATE book SET title=?, category=?, image_url=?, price=?, isbn=?, contact=?, status=?, description=?, `+"`condition`"+`=?, is_delivery=?
 		WHERE book_id=?`,
-		b.Title, b.Category, b.ImageURL, b.Price, b.ISBN, b.Contact, b.Status, b.Description, b.Condition, b.BookID)
+		b.Title, b.Category, b.ImageURL, b.Price, b.ISBN, b.Contact, b.Status, b.Description, b.Condition, b.IsDelivery, b.BookID)
 	if err != nil {
 		return err
 	}

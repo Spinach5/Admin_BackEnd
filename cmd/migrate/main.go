@@ -223,6 +223,14 @@ func main() {
 		log.Println("  ✓ book.school_id 列已添加")
 	}
 
+	// 书籍表 — 添加 is_delivery 列（兼容旧表）
+	var bookIsDeliveryColCount int
+	appDB.Get(&bookIsDeliveryColCount, "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'book' AND COLUMN_NAME = 'is_delivery'")
+	if bookIsDeliveryColCount == 0 {
+		appDB.MustExec("ALTER TABLE book ADD COLUMN is_delivery TINYINT(1) NOT NULL DEFAULT 0 COMMENT '0自提 1帮送'")
+		log.Println("  ✓ book.is_delivery 列已添加")
+	}
+
 	// 书籍图片表
 	appDB.MustExec(`
 		CREATE TABLE IF NOT EXISTS book_images (
