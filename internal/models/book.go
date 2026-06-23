@@ -1,9 +1,11 @@
 package models
 
 import (
+	"errors"
 	"fmt"
 	"log"
 
+	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -344,12 +346,9 @@ func ToggleWant(db *sqlx.DB, bookID, userID int) (wanted bool, wantCount int, er
 }
 
 func isDuplicateKeyError(err error) bool {
-	if err == nil {
-		return false
-	}
-	// mysql driver returns *mysql.MySQLError for server errors
-	if mysqlErr, ok := err.(interface{ Number() uint16 }); ok {
-		return mysqlErr.Number() == 1062
+	var mysqlErr *mysql.MySQLError
+	if errors.As(err, &mysqlErr) {
+		return mysqlErr.Number == 1062
 	}
 	return false
 }
