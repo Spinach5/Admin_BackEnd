@@ -199,6 +199,86 @@ func main() {
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 	`)
 
+	// 书籍表 — 添加 description 列（兼容旧表）
+	var bookDescColCount int
+	appDB.Get(&bookDescColCount, "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'book' AND COLUMN_NAME = 'description'")
+	if bookDescColCount == 0 {
+		appDB.MustExec("ALTER TABLE book ADD COLUMN description TEXT COMMENT '描述/详情'")
+		log.Println("  ✓ book.description 列已添加")
+	}
+
+	// 书籍表 — 添加 condition 列（兼容旧表）
+	var bookCondColCount int
+	appDB.Get(&bookCondColCount, "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'book' AND COLUMN_NAME = 'condition'")
+	if bookCondColCount == 0 {
+		appDB.MustExec("ALTER TABLE book ADD COLUMN `condition` VARCHAR(20) NOT NULL DEFAULT '几乎全新' COMMENT '新旧程度'")
+		log.Println("  ✓ book.condition 列已添加")
+	}
+
+	// 书籍表 — 添加 school_id 列（兼容旧表）
+	var bookSchoolColCount int
+	appDB.Get(&bookSchoolColCount, "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'book' AND COLUMN_NAME = 'school_id'")
+	if bookSchoolColCount == 0 {
+		appDB.MustExec("ALTER TABLE book ADD COLUMN school_id VARCHAR(50) NOT NULL DEFAULT 'hbut' COMMENT '学校代码'")
+		log.Println("  ✓ book.school_id 列已添加")
+	}
+
+	// 书籍图片表
+	appDB.MustExec(`
+		CREATE TABLE IF NOT EXISTS book_images (
+			id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			book_id INT UNSIGNED NOT NULL,
+			image_url VARCHAR(500) NOT NULL,
+			sort_order TINYINT UNSIGNED DEFAULT 0,
+			FOREIGN KEY (book_id) REFERENCES book(book_id) ON DELETE CASCADE
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+	`)
+	log.Println("  ✓ book_images")
+
+	// 书籍种类表
+	appDB.MustExec(`
+		CREATE TABLE IF NOT EXISTS book_categories (
+			id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			name VARCHAR(100) NOT NULL,
+			school_id VARCHAR(50) NOT NULL DEFAULT 'hbut',
+			sort_order INT DEFAULT 0
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+	`)
+	log.Println("  ✓ book_categories")
+
+	// 种子数据：默认书籍种类
+	var catCount int
+	appDB.Get(&catCount, "SELECT COUNT(*) FROM book_categories")
+	if catCount == 0 {
+		categories := []struct {
+			Name      string
+			SortOrder int
+		}{
+			{"数学", 1}, {"外语", 2}, {"计算机", 3}, {"理工类", 4},
+			{"思政类", 5}, {"文学类", 6}, {"经管类", 7}, {"其他", 8},
+		}
+		for _, c := range categories {
+			appDB.MustExec("INSERT INTO book_categories (name, school_id, sort_order) VALUES (?, 'hbut', ?)", c.Name, c.SortOrder)
+		}
+		log.Println("  ✓ book_categories 种子数据已插入")
+	} else {
+		log.Println("  book_categories 已有数据，跳过种子")
+	}
+
+	// 书籍想要表
+	appDB.MustExec(`
+		CREATE TABLE IF NOT EXISTS book_wants (
+			id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			book_id INT UNSIGNED NOT NULL,
+			user_id INT UNSIGNED NOT NULL,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE KEY uk_book_user (book_id, user_id),
+			FOREIGN KEY (book_id) REFERENCES book(book_id) ON DELETE CASCADE,
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+	`)
+	log.Println("  ✓ book_wants")
+
 	// 插入默认管理员账号
 	var count int
 	appDB.Get(&count, "SELECT COUNT(*) FROM admins WHERE account = 'admin'")
