@@ -128,9 +128,15 @@ func V1CreateBook() gin.HandlerFunc {
 				SchoolID    string   `json:"school_id"`
 				IsDelivery  int      `json:"is_delivery"`
 				Images      []string `json:"images"`
+				StuID       string   `json:"stu_id"`
+				Password    string   `json:"password"`
 			}
 			if err := c.ShouldBindJSON(&req); err != nil {
 				dto.BadRequest(c, "参数错误")
+				return
+			}
+			if err := verifyBookCredentials(req.SchoolID, req.StuID, req.Password); err != nil {
+				dto.BadRequest(c, err.Error())
 				return
 			}
 			title = strings.TrimSpace(req.Name)
@@ -144,6 +150,15 @@ func V1CreateBook() gin.HandlerFunc {
 			isDelivery = req.IsDelivery
 			imageURLs = req.Images
 		} else {
+			// 表单数据：从表单字段提取凭证
+			if err := verifyBookCredentials(
+				c.PostForm("school_id"),
+				c.PostForm("stu_id"),
+				c.PostForm("password"),
+			); err != nil {
+				dto.BadRequest(c, err.Error())
+				return
+			}
 			title = strings.TrimSpace(c.PostForm("title"))
 			category = c.PostForm("category")
 			price = c.PostForm("price")
@@ -271,9 +286,16 @@ func V1UpdateBook() gin.HandlerFunc {
 				Condition   string   `json:"condition"`
 				IsDelivery  int      `json:"is_delivery"`
 				Images      []string `json:"images"`
+				SchoolID    string   `json:"school_id"`
+				StuID       string   `json:"stu_id"`
+				Password    string   `json:"password"`
 			}
 			if err := c.ShouldBindJSON(&req); err != nil {
 				dto.BadRequest(c, "参数错误")
+				return
+			}
+			if err := verifyBookCredentials(req.SchoolID, req.StuID, req.Password); err != nil {
+				dto.BadRequest(c, err.Error())
 				return
 			}
 			title = strings.TrimSpace(req.Name)
@@ -286,6 +308,15 @@ func V1UpdateBook() gin.HandlerFunc {
 			isDelivery = req.IsDelivery
 			imageURLs = req.Images
 		} else {
+			// 表单数据：从表单字段提取凭证
+			if err := verifyBookCredentials(
+				c.PostForm("school_id"),
+				c.PostForm("stu_id"),
+				c.PostForm("password"),
+			); err != nil {
+				dto.BadRequest(c, err.Error())
+				return
+			}
 			title = strings.TrimSpace(c.PostForm("title"))
 			category = c.PostForm("category")
 			price = c.PostForm("price")
@@ -401,9 +432,26 @@ func V1DeleteBook() gin.HandlerFunc {
 			return
 		}
 
-		if err := models.SoftDeleteBookByUser(database.DB, id, userID); err != nil {
+		// 验证教务系统凭证（DELETE 请求从 query 参数获取）
+		if err := verifyBookCredentials(
+			c.Query("school_id"),
+			c.Query("stu_id"),
+			c.Query("password"),
+		); err != nil {
 			dto.BadRequest(c, err.Error())
 			return
+		}
+
+		// 硬删除：删除数据库记录和磁盘图片文件
+		imageURLs, err := models.HardDeleteBookByUser(database.DB, id, userID)
+		if err != nil {
+			dto.BadRequest(c, err.Error())
+			return
+		}
+
+		// 清理磁盘上的图片文件
+		for _, url := range imageURLs {
+			deleteImageFile(url)
 		}
 
 		dto.SuccessMessage(c, "删除成功")

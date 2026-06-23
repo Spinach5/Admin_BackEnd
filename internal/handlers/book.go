@@ -1,6 +1,10 @@
 package handlers
 
 import (
+	"crypto/sha256"
+	"database/sql"
+	"encoding/hex"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -14,6 +18,7 @@ import (
 	"web-backend/internal/models"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // GetBooks 获取书籍列表
@@ -406,4 +411,39 @@ func DeleteBookCategory() gin.HandlerFunc {
 		}
 		dto.SuccessMessage(c, "删除种类成功")
 	}
+}
+
+// ---- 本地身份验证 ----
+
+// verifyBookCredentials 本地验证用户身份（学号+学校+密码）
+// 前端传来的 password 是 RSA 加密后的密文，与注册时相同的 SHA-256 → bcrypt 流程
+func verifyBookCredentials(schoolID, stuID, password string) error {
+	// 1. 数据合理性验证
+	if schoolID == "" || stuID == "" || password == "" {
+		return fmt.Errorf("缺少身份验证参数 (school_id, stu_id, password)")
+	}
+	if len(schoolID) > 50 {
+		return fmt.Errorf("学校ID格式不正确")
+	}
+	if len(stuID) > 30 {
+		return fmt.Errorf("学号格式不正确")
+	}
+
+	// 2. 查询用户是否存在
+	user, err := models.GetUserByStuIDAndSchoolIDWithPassword(database.DB, stuID, schoolID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("账户不存在，请先注册")
+		}
+		log.Printf("验证凭证查询用户失败: %v", err)
+		return fmt.Errorf("服务器错误")
+	}
+
+	// 3. 验证密码：RSA 密文 → SHA-256 → bcrypt 比对
+	sha := sha256.Sum256([]byte(password))
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(hex.EncodeToString(sha[:]))); err != nil {
+		return fmt.Errorf("密码错误")
+	}
+
+	return nil
 }

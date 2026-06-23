@@ -69,6 +69,46 @@ func DeleteBook(db *sqlx.DB, id int) error {
 	return err
 }
 
+// HardDeleteBookByUser 硬删除书籍及其关联数据，返回图片 URL 列表用于清理磁盘文件
+func HardDeleteBookByUser(db *sqlx.DB, bookID, userID int) ([]string, error) {
+	var imageURLs []string
+
+	tx, err := db.Beginx()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	// 验证所有权
+	var ownerID int
+	if err := tx.Get(&ownerID, "SELECT user_id FROM book WHERE book_id = ?", bookID); err != nil {
+		return nil, fmt.Errorf("书籍不存在")
+	}
+	if ownerID != userID {
+		return nil, fmt.Errorf("只能删除自己的书籍")
+	}
+
+	// 获取图片 URL 用于后续清理磁盘文件
+	if err := tx.Select(&imageURLs, "SELECT image_url FROM book_images WHERE book_id = ?", bookID); err != nil {
+		return nil, err
+	}
+
+	// 删除关联数据
+	tx.Exec("DELETE FROM book_images WHERE book_id = ?", bookID)
+	tx.Exec("DELETE FROM book_wants WHERE book_id = ?", bookID)
+
+	// 删除书籍本身
+	if _, err := tx.Exec("DELETE FROM book WHERE book_id = ? AND user_id = ?", bookID, userID); err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return imageURLs, nil
+}
+
 func CountActiveBooksByUser(db *sqlx.DB, userID int) (int, error) {
 	var count int
 	err := db.Get(&count, "SELECT COUNT(*) FROM book WHERE user_id = ? AND status = 'active'", userID)
