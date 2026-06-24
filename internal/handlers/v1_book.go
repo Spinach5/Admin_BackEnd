@@ -111,14 +111,18 @@ func V1CreateBook() gin.HandlerFunc {
 		}
 
 		// Accept JSON or form data
-		var title, category, price, isbn, contact, description, condition, schoolID string
+		var title, author, publisher, coverURL, category, price, isbn, contact, description, condition, schoolID string
 		var isDelivery int
+		var bookType int16
 		var imageURLs []string
 
 		contentType := c.ContentType()
 		if contentType == "application/json" {
 			var req struct {
 				Name        string   `json:"name"`
+				Author      string   `json:"author"`
+				Publisher   string   `json:"publisher"`
+				CoverURL    string   `json:"cover_url"`
 				Category    string   `json:"category"`
 				Price       string   `json:"price"`
 				ISBN        string   `json:"isbn"`
@@ -127,6 +131,7 @@ func V1CreateBook() gin.HandlerFunc {
 				Condition   string   `json:"condition"`
 				SchoolID    string   `json:"school_id"`
 				IsDelivery  int      `json:"is_delivery"`
+				BookType    int16    `json:"book_type"`
 				Images      []string `json:"images"`
 				StuID       string   `json:"stu_id"`
 				Password    string   `json:"password"`
@@ -140,6 +145,9 @@ func V1CreateBook() gin.HandlerFunc {
 				return
 			}
 			title = strings.TrimSpace(req.Name)
+			author = req.Author
+			publisher = req.Publisher
+			coverURL = req.CoverURL
 			category = req.Category
 			price = req.Price
 			isbn = req.ISBN
@@ -148,6 +156,7 @@ func V1CreateBook() gin.HandlerFunc {
 			condition = req.Condition
 			schoolID = req.SchoolID
 			isDelivery = req.IsDelivery
+			bookType = req.BookType
 			imageURLs = req.Images
 		} else {
 			// 表单数据：从表单字段提取凭证
@@ -160,6 +169,9 @@ func V1CreateBook() gin.HandlerFunc {
 				return
 			}
 			title = strings.TrimSpace(c.PostForm("title"))
+			author = c.PostForm("author")
+			publisher = c.PostForm("publisher")
+			coverURL = c.PostForm("cover_url")
 			category = c.PostForm("category")
 			price = c.PostForm("price")
 			isbn = c.PostForm("isbn")
@@ -169,6 +181,11 @@ func V1CreateBook() gin.HandlerFunc {
 			schoolID = c.PostForm("school_id")
 			if c.PostForm("is_delivery") == "1" {
 				isDelivery = 1
+			}
+			bookTypeStr := c.PostForm("book_type")
+			bookType = 1
+			if bookTypeStr == "2" {
+				bookType = 2
 			}
 			imageURLsRaw := c.PostForm("image_urls")
 			if imageURLsRaw != "" {
@@ -226,8 +243,16 @@ func V1CreateBook() gin.HandlerFunc {
 			condition = "几乎全新"
 		}
 
+		// book_type 默认值
+		if bookType == 0 {
+			bookType = 1
+		}
+
 		book := &models.Book{
 			Title:       title,
+			Author:      strPtr(author),
+			Publisher:   strPtr(publisher),
+			CoverURL:    strPtr(coverURL),
 			Category:    strPtr(category),
 			ImageURL:    strPtr(firstImageURL),
 			Price:       strPtr(price),
@@ -237,6 +262,7 @@ func V1CreateBook() gin.HandlerFunc {
 			Condition:   strPtr(condition),
 			SchoolID:    schoolID,
 			IsDelivery:  isDelivery,
+			BookType:    bookType,
 			UserID:      userID,
 			Status:      "active",
 		}
@@ -270,14 +296,18 @@ func V1UpdateBook() gin.HandlerFunc {
 			return
 		}
 
-		var title, category, price, isbn, contact, description, condition string
+		var title, author, publisher, coverURL, category, price, isbn, contact, description, condition string
 		var isDelivery int
+		var bookType int16
 		var imageURLs []string
 
 		contentType := c.ContentType()
 		if contentType == "application/json" {
 			var req struct {
 				Name        string   `json:"name"`
+				Author      string   `json:"author"`
+				Publisher   string   `json:"publisher"`
+				CoverURL    string   `json:"cover_url"`
 				Category    string   `json:"category"`
 				Price       string   `json:"price"`
 				ISBN        string   `json:"isbn"`
@@ -285,6 +315,7 @@ func V1UpdateBook() gin.HandlerFunc {
 				Description string   `json:"description"`
 				Condition   string   `json:"condition"`
 				IsDelivery  int      `json:"is_delivery"`
+				BookType    int16    `json:"book_type"`
 				Images      []string `json:"images"`
 				SchoolID    string   `json:"school_id"`
 				StuID       string   `json:"stu_id"`
@@ -299,6 +330,9 @@ func V1UpdateBook() gin.HandlerFunc {
 				return
 			}
 			title = strings.TrimSpace(req.Name)
+			author = req.Author
+			publisher = req.Publisher
+			coverURL = req.CoverURL
 			category = req.Category
 			price = req.Price
 			isbn = req.ISBN
@@ -306,6 +340,7 @@ func V1UpdateBook() gin.HandlerFunc {
 			description = req.Description
 			condition = req.Condition
 			isDelivery = req.IsDelivery
+			bookType = req.BookType
 			imageURLs = req.Images
 		} else {
 			// 表单数据：从表单字段提取凭证
@@ -318,6 +353,9 @@ func V1UpdateBook() gin.HandlerFunc {
 				return
 			}
 			title = strings.TrimSpace(c.PostForm("title"))
+			author = c.PostForm("author")
+			publisher = c.PostForm("publisher")
+			coverURL = c.PostForm("cover_url")
 			category = c.PostForm("category")
 			price = c.PostForm("price")
 			isbn = c.PostForm("isbn")
@@ -332,6 +370,16 @@ func V1UpdateBook() gin.HandlerFunc {
 				}
 			} else {
 				isDelivery = existing.IsDelivery
+			}
+			bookTypeStr := c.PostForm("book_type")
+			if bookTypeStr != "" {
+				if bookTypeStr == "2" {
+					bookType = 2
+				} else {
+					bookType = 1
+				}
+			} else {
+				bookType = existing.BookType
 			}
 			imageURLsRaw := c.PostForm("image_urls")
 			if imageURLsRaw != "" {
@@ -350,6 +398,15 @@ func V1UpdateBook() gin.HandlerFunc {
 		}
 
 		// Fallbacks to existing values
+		if author == "" {
+			author = ptrStrVal(existing.Author)
+		}
+		if publisher == "" {
+			publisher = ptrStrVal(existing.Publisher)
+		}
+		if coverURL == "" {
+			coverURL = ptrStrVal(existing.CoverURL)
+		}
 		if category == "" {
 			category = ptrStrVal(existing.Category)
 		}
@@ -358,6 +415,14 @@ func V1UpdateBook() gin.HandlerFunc {
 		}
 		if description == "" {
 			description = ptrStrVal(existing.Description)
+		}
+
+		// book_type 默认值
+		if bookType == 0 {
+			bookType = existing.BookType
+			if bookType == 0 {
+				bookType = 1
+			}
 		}
 
 		// If no images submitted, preserve existing
@@ -402,6 +467,9 @@ func V1UpdateBook() gin.HandlerFunc {
 		book := &models.Book{
 			BookID:      id,
 			Title:       title,
+			Author:      strPtr(author),
+			Publisher:   strPtr(publisher),
+			CoverURL:    strPtr(coverURL),
 			Category:    strPtr(category),
 			ImageURL:    strPtr(firstImageURL),
 			Price:       strPtr(price),
@@ -410,6 +478,7 @@ func V1UpdateBook() gin.HandlerFunc {
 			Description: strPtr(description),
 			Condition:   strPtr(condition),
 			IsDelivery:  isDelivery,
+			BookType:    bookType,
 			Status:      existing.Status,
 		}
 

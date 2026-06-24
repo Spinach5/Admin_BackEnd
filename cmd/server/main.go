@@ -71,16 +71,23 @@ func main() {
 				admin.DELETE("/admins/:id", handlers.DeleteAdmin())
 			}
 
-			// 普通用户管理
+			// 普通用户管理 (查询/创建/更新 — 普通管理员)
 			authorized.GET("/users", handlers.GetUsers())
 			authorized.GET("/users/:id", handlers.GetUserByID())
 			authorized.POST("/users", handlers.CreateUser())
 			authorized.PUT("/users/:id", handlers.UpdateUser())
-			authorized.DELETE("/users/:id", handlers.SoftDeleteUser())
-			authorized.DELETE("/users/:id/hard", handlers.HardDeleteUser())
+
+			// 用户注销 (仅超级管理员)
+			userDeletion := authorized.Group("/users")
+			userDeletion.Use(middleware.RequireSuperAdmin())
+			{
+				userDeletion.DELETE("/:id", handlers.SoftDeleteUser())
+				userDeletion.DELETE("/:id/hard", handlers.HardDeleteUser())
+			}
 
 			// 书籍管理
 			authorized.GET("/books/categories", handlers.GetBookCategories())
+			authorized.GET("/books/categories/detail", handlers.GetBookCategoriesWithCount())
 			authorized.POST("/books/categories", handlers.CreateBookCategory())
 			authorized.PUT("/books/categories/:id", handlers.UpdateBookCategory())
 			authorized.DELETE("/books/categories/:id", handlers.DeleteBookCategory())

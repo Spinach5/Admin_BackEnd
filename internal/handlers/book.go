@@ -30,8 +30,42 @@ func GetBooks() gin.HandlerFunc {
 			dto.InternalError(c, "获取书籍列表失败")
 			return
 		}
-		fixBookImageURLs(books)
-		dto.Success(c, books)
+
+		// 批量加载每本书的图片
+		bookIDs := make([]int, len(books))
+		for i, b := range books {
+			bookIDs[i] = b.BookID
+		}
+		imagesMap, err := models.GetBooksImagesByIDs(database.DB, bookIDs)
+		if err != nil {
+			log.Printf("获取书籍图片失败: %v", err)
+			dto.InternalError(c, "获取书籍图片失败")
+			return
+		}
+
+		// 组装返回数据
+		result := make([]models.BookWithUserAndImages, len(books))
+		for i, b := range books {
+			if b.ImageURL != nil {
+				b.ImageURL = strPtr(ToAbsoluteURL(ptrStrVal(b.ImageURL)))
+			}
+			if b.CoverURL != nil {
+				b.CoverURL = strPtr(ToAbsoluteURL(ptrStrVal(b.CoverURL)))
+			}
+			imgs := imagesMap[b.BookID]
+			if imgs == nil {
+				imgs = []models.BookImage{}
+			}
+			for j := range imgs {
+				imgs[j].ImageURL = ToAbsoluteURL(imgs[j].ImageURL)
+			}
+			result[i] = models.BookWithUserAndImages{
+				BookWithUser: b,
+				Images:       imgs,
+			}
+		}
+
+		dto.Success(c, result)
 	}
 }
 
@@ -43,15 +77,13 @@ func GetBookByID() gin.HandlerFunc {
 			dto.BadRequest(c, "无效的书籍ID")
 			return
 		}
-		book, err := models.GetBookByID(database.DB, id)
+		detail, err := models.GetBookDetail(database.DB, id, 0)
 		if err != nil {
 			dto.Error(c, 404, "书籍不存在")
 			return
 		}
-		if book.ImageURL != nil {
-			book.ImageURL = strPtr(ToAbsoluteURL(ptrStrVal(book.ImageURL)))
-		}
-		dto.Success(c, book)
+		fixBookDetailImageURLs(detail)
+		dto.Success(c, detail)
 	}
 }
 
@@ -59,11 +91,15 @@ func GetBookByID() gin.HandlerFunc {
 func CreateBook() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		title := c.PostForm("title")
+		author := c.PostForm("author")
+		publisher := c.PostForm("publisher")
+		coverURL := c.PostForm("cover_url")
 		category := c.PostForm("category")
 		price := c.PostForm("price")
 		isbn := c.PostForm("isbn")
 		contact := c.PostForm("contact")
 		status := c.PostForm("status")
+		bookTypeStr := c.PostForm("book_type")
 
 		if title == "" {
 			dto.BadRequest(c, "书名不能为空")
@@ -73,11 +109,18 @@ func CreateBook() gin.HandlerFunc {
 			status = "active"
 		}
 
+		// book_type: 1=卖书, 2=找书, 默认1
+		bookType := int16(1)
+		if bookTypeStr == "2" {
+			bookType = 2
+		}
+
 		if category != "" && !bookCategories[category] {
 			dto.BadRequest(c, "无效的书籍种类")
 			return
 		}
 
+		// 封面图：优先 cover_url，其次上传文件 image
 		var imageURL string
 		file, err := c.FormFile("image")
 		if err == nil {
@@ -88,21 +131,23 @@ func CreateBook() gin.HandlerFunc {
 				return
 			}
 			imageURL = url
-		} else if err != http.ErrMissingFile {
-			log.Printf("读取上传文件失败: %v", err)
 		}
 
 		userID := middleware.GetCurrentUserID(c)
 
 		book := &models.Book{
-			Title:    title,
-			Category: strPtr(category),
-			ImageURL: strPtr(imageURL),
-			Price:    strPtr(price),
-			ISBN:     strPtr(isbn),
-			Contact:  strPtr(contact),
-			UserID:   userID,
-			Status:   status,
+			Title:     title,
+			Author:    strPtr(author),
+			Publisher: strPtr(publisher),
+			CoverURL:  strPtr(coverURL),
+			Category:  strPtr(category),
+			ImageURL:  strPtr(imageURL),
+			Price:     strPtr(price),
+			ISBN:      strPtr(isbn),
+			Contact:   strPtr(contact),
+			UserID:    userID,
+			Status:    status,
+			BookType:  bookType,
 		}
 
 		if err := models.CreateBook(database.DB, book); err != nil {
@@ -162,19 +207,30 @@ func UpdateBook() gin.HandlerFunc {
 		}
 
 		book := &models.Book{
-			BookID:   id,
-			Title:    title,
-			Category: strPtr(category),
-			ImageURL: strPtr(imageURL),
-			Price:    strPtr(c.PostForm("price")),
-			ISBN:     strPtr(c.PostForm("isbn")),
-			Contact:  strPtr(c.PostForm("contact")),
-			Status:   existing.Status,
+			BookID:    id,
+			Title:     title,
+			Author:    strPtr(coalesceForm(c, "author", ptrStrVal(existing.Author))),
+			Publisher: strPtr(coalesceForm(c, "publisher", ptrStrVal(existing.Publisher))),
+			CoverURL:  strPtr(coalesceForm(c, "cover_url", ptrStrVal(existing.CoverURL))),
+			Category:  strPtr(category),
+			ImageURL:  strPtr(imageURL),
+			Price:     strPtr(c.PostForm("price")),
+			ISBN:      strPtr(c.PostForm("isbn")),
+			Contact:   strPtr(c.PostForm("contact")),
+			Status:    existing.Status,
+			BookType:  existing.BookType,
 		}
 
 		stat := c.PostForm("status")
 		if stat != "" {
 			book.Status = stat
+		}
+
+		bookTypeStr := c.PostForm("book_type")
+		if bookTypeStr == "2" {
+			book.BookType = 2
+		} else if bookTypeStr == "1" {
+			book.BookType = 1
 		}
 
 		if err := models.UpdateBook(database.DB, book); err != nil {
@@ -268,6 +324,14 @@ func strPtr(s string) *string {
 	return &s
 }
 
+// coalesceForm 如果表单字段有值则返回，否则返回默认值
+func coalesceForm(c *gin.Context, key, fallback string) string {
+	if v := c.PostForm(key); v != "" {
+		return v
+	}
+	return fallback
+}
+
 func ptrStrVal(s *string) string {
 	if s == nil {
 		return ""
@@ -303,6 +367,9 @@ func fixBookImageURLs(books []models.BookWithUser) {
 		if books[i].ImageURL != nil {
 			books[i].ImageURL = strPtr(ToAbsoluteURL(ptrStrVal(books[i].ImageURL)))
 		}
+		if books[i].CoverURL != nil {
+			books[i].CoverURL = strPtr(ToAbsoluteURL(ptrStrVal(books[i].CoverURL)))
+		}
 	}
 }
 
@@ -310,6 +377,9 @@ func fixBookImageURLs(books []models.BookWithUser) {
 func fixBookDetailImageURLs(detail *models.BookDetail) {
 	if detail.ImageURL != nil {
 		detail.ImageURL = strPtr(ToAbsoluteURL(ptrStrVal(detail.ImageURL)))
+	}
+	if detail.CoverURL != nil {
+		detail.CoverURL = strPtr(ToAbsoluteURL(ptrStrVal(detail.CoverURL)))
 	}
 	for i := range detail.Images {
 		detail.Images[i].ImageURL = ToAbsoluteURL(detail.Images[i].ImageURL)
@@ -359,7 +429,7 @@ func CreateBookCategory() gin.HandlerFunc {
 	}
 }
 
-// UpdateBookCategory 更新书籍种类 (admin)
+// UpdateBookCategory 更新书籍种类 (admin) — 同步更新关联书籍的 category 字段
 func UpdateBookCategory() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.Atoi(c.Param("id"))
@@ -381,12 +451,7 @@ func UpdateBookCategory() gin.HandlerFunc {
 			return
 		}
 
-		cat := &models.BookCategory{
-			ID:        id,
-			Name:      req.Name,
-			SortOrder: req.SortOrder,
-		}
-		if err := models.UpdateBookCategory(database.DB, cat); err != nil {
+		if err := models.UpdateBookCategoryWithSync(database.DB, id, req.Name, req.SortOrder); err != nil {
 			log.Printf("更新书籍种类失败: %v", err)
 			dto.InternalError(c, "更新书籍种类失败")
 			return
@@ -395,7 +460,7 @@ func UpdateBookCategory() gin.HandlerFunc {
 	}
 }
 
-// DeleteBookCategory 删除书籍种类 (admin)
+// DeleteBookCategory 删除书籍种类 (admin) — 同时删除该分类下的所有书籍
 func DeleteBookCategory() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.Atoi(c.Param("id"))
@@ -404,12 +469,38 @@ func DeleteBookCategory() gin.HandlerFunc {
 			return
 		}
 
-		if err := models.DeleteBookCategory(database.DB, id); err != nil {
+		imageURLs, err := models.DeleteBookCategoryCascade(database.DB, id)
+		if err != nil {
 			log.Printf("删除书籍种类失败: %v", err)
-			dto.InternalError(c, "删除书籍种类失败")
+			dto.InternalError(c, err.Error())
 			return
 		}
-		dto.SuccessMessage(c, "删除种类成功")
+
+		// 清理磁盘上的图片文件
+		for _, url := range imageURLs {
+			deleteImageFile(url)
+		}
+
+		dto.SuccessMessage(c, "删除种类成功，关联书籍已一并删除")
+	}
+}
+
+// GetBookCategoriesWithCount 获取书籍种类列表（含书籍数量）
+func GetBookCategoriesWithCount() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		schoolID := c.Query("school_id")
+		if schoolID == "" {
+			schoolID = "hbut"
+		}
+
+		categories, err := models.GetCategoriesWithBookCount(database.DB, schoolID)
+		if err != nil {
+			log.Printf("获取书籍种类失败: %v", err)
+			dto.InternalError(c, "获取书籍种类失败")
+			return
+		}
+
+		dto.Success(c, categories)
 	}
 }
 

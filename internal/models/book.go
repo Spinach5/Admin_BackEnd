@@ -12,7 +12,10 @@ import (
 type Book struct {
 	BookID           int     `db:"book_id" json:"book_id"`
 	Title            string  `db:"title" json:"title"`
+	Author           *string `db:"author" json:"author"`
+	Publisher        *string `db:"publisher" json:"publisher"`
 	Category         *string `db:"category" json:"category"`
+	CoverURL         *string `db:"cover_url" json:"cover_url"`
 	ImageURL         *string `db:"image_url" json:"image_url"`
 	Price            *string `db:"price" json:"price"`
 	ISBN             *string `db:"isbn" json:"isbn"`
@@ -21,6 +24,7 @@ type Book struct {
 	Condition        *string `db:"condition" json:"condition"`
 	SchoolID         string  `db:"school_id" json:"school_id"`
 	IsDelivery       int     `db:"is_delivery" json:"is_delivery"`
+	BookType         int16   `db:"book_type" json:"book_type"`
 	UserID           int     `db:"user_id" json:"user_id"`
 	Status           string  `db:"status" json:"status"`
 	CreateTime       string  `db:"create_time" json:"create_time"`
@@ -32,6 +36,11 @@ type BookWithUser struct {
 	NickName   string `db:"nickName" json:"nickName"`
 	StuID      string `db:"stuId" json:"stuId"`
 	IsDelivery int    `db:"is_delivery" json:"is_delivery"`
+}
+
+type BookWithUserAndImages struct {
+	BookWithUser
+	Images []BookImage `json:"images"`
 }
 
 func GetAllBooks(db *sqlx.DB) ([]BookWithUser, error) {
@@ -51,16 +60,16 @@ func GetBookByID(db *sqlx.DB, id int) (*BookWithUser, error) {
 }
 
 func CreateBook(db *sqlx.DB, b *Book) error {
-	_, err := db.Exec(`INSERT INTO book (title, category, image_url, price, isbn, contact, user_id, status)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		b.Title, b.Category, b.ImageURL, b.Price, b.ISBN, b.Contact, b.UserID, b.Status)
+	_, err := db.Exec(`INSERT INTO book (title, author, publisher, cover_url, category, image_url, price, isbn, contact, user_id, status, book_type)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		b.Title, b.Author, b.Publisher, b.CoverURL, b.Category, b.ImageURL, b.Price, b.ISBN, b.Contact, b.UserID, b.Status, b.BookType)
 	return err
 }
 
 func UpdateBook(db *sqlx.DB, b *Book) error {
-	_, err := db.Exec(`UPDATE book SET title=?, category=?, image_url=?, price=?, isbn=?, contact=?, status=?
+	_, err := db.Exec(`UPDATE book SET title=?, author=?, publisher=?, cover_url=?, category=?, image_url=?, price=?, isbn=?, contact=?, status=?, book_type=?
 		WHERE book_id=?`,
-		b.Title, b.Category, b.ImageURL, b.Price, b.ISBN, b.Contact, b.Status, b.BookID)
+		b.Title, b.Author, b.Publisher, b.CoverURL, b.Category, b.ImageURL, b.Price, b.ISBN, b.Contact, b.Status, b.BookType, b.BookID)
 	return err
 }
 
@@ -168,6 +177,11 @@ type BookCategory struct {
 	Name      string `db:"name" json:"name"`
 	SchoolID  string `db:"school_id" json:"school_id"`
 	SortOrder int    `db:"sort_order" json:"sort_order"`
+}
+
+type BookCategoryWithCount struct {
+	BookCategory
+	BookCount int `db:"book_count" json:"book_count"`
 }
 
 type BookDetail struct {
@@ -318,9 +332,9 @@ func CreateBookWithImages(db *sqlx.DB, b *Book, imageURLs []string) error {
 	}
 	defer tx.Rollback()
 
-	result, err := tx.Exec(`INSERT INTO book (title, category, image_url, price, isbn, contact, user_id, status, description, `+"`condition`"+`, school_id, is_delivery)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		b.Title, b.Category, b.ImageURL, b.Price, b.ISBN, b.Contact, b.UserID, b.Status, b.Description, b.Condition, b.SchoolID, b.IsDelivery)
+	result, err := tx.Exec(`INSERT INTO book (title, author, publisher, cover_url, category, image_url, price, isbn, contact, user_id, status, description, `+"`condition`"+`, school_id, is_delivery, book_type)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		b.Title, b.Author, b.Publisher, b.CoverURL, b.Category, b.ImageURL, b.Price, b.ISBN, b.Contact, b.UserID, b.Status, b.Description, b.Condition, b.SchoolID, b.IsDelivery, b.BookType)
 	if err != nil {
 		return err
 	}
@@ -346,9 +360,9 @@ func UpdateBookWithImages(db *sqlx.DB, b *Book, imageURLs []string) error {
 	}
 	defer tx.Rollback()
 
-	_, err = tx.Exec(`UPDATE book SET title=?, category=?, image_url=?, price=?, isbn=?, contact=?, status=?, description=?, `+"`condition`"+`=?, is_delivery=?
+	_, err = tx.Exec(`UPDATE book SET title=?, author=?, publisher=?, cover_url=?, category=?, image_url=?, price=?, isbn=?, contact=?, status=?, description=?, `+"`condition`"+`=?, is_delivery=?, book_type=?
 		WHERE book_id=?`,
-		b.Title, b.Category, b.ImageURL, b.Price, b.ISBN, b.Contact, b.Status, b.Description, b.Condition, b.IsDelivery, b.BookID)
+		b.Title, b.Author, b.Publisher, b.CoverURL, b.Category, b.ImageURL, b.Price, b.ISBN, b.Contact, b.Status, b.Description, b.Condition, b.IsDelivery, b.BookType, b.BookID)
 	if err != nil {
 		return err
 	}
@@ -411,7 +425,131 @@ func UpdateBookCategory(db *sqlx.DB, c *BookCategory) error {
 	return err
 }
 
+// UpdateBookCategoryWithSync 更新分类名称并同步更新所有关联书籍的 category 字段
+func UpdateBookCategoryWithSync(db *sqlx.DB, categoryID int, newName string, sortOrder int) error {
+	// 先查出旧名称
+	var oldCat BookCategory
+	if err := db.Get(&oldCat, "SELECT id, name, school_id, sort_order FROM book_categories WHERE id = ?", categoryID); err != nil {
+		return fmt.Errorf("分类不存在")
+	}
+
+	tx, err := db.Beginx()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// 更新分类名称
+	if _, err := tx.Exec("UPDATE book_categories SET name=?, sort_order=? WHERE id=?", newName, sortOrder, categoryID); err != nil {
+		return err
+	}
+
+	// 同步更新 books 表中的 category 字符串
+	if oldCat.Name != newName {
+		if _, err := tx.Exec("UPDATE book SET category = ? WHERE category = ?", newName, oldCat.Name); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
+// DeleteBookCategory 删除分类（仅删除分类本身，不删除关联书籍）
 func DeleteBookCategory(db *sqlx.DB, id int) error {
 	_, err := db.Exec("DELETE FROM book_categories WHERE id = ?", id)
 	return err
+}
+
+// GetCategoriesWithBookCount 获取分类列表并统计每个分类下的活跃书籍数量
+func GetCategoriesWithBookCount(db *sqlx.DB, schoolID string) ([]BookCategoryWithCount, error) {
+	categories := make([]BookCategoryWithCount, 0)
+	err := db.Select(&categories, `SELECT c.id, c.name, c.school_id, c.sort_order,
+		COALESCE((SELECT COUNT(*) FROM book b WHERE b.category = c.name COLLATE utf8mb4_unicode_ci AND b.status = 'active'), 0) AS book_count
+		FROM book_categories c
+		WHERE c.school_id = ?
+		ORDER BY c.sort_order`, schoolID)
+	return categories, err
+}
+
+// CountBooksByCategoryName 按分类名统计该分类下的活跃书籍数量
+func CountBooksByCategoryName(db *sqlx.DB, categoryName string) (int, error) {
+	var count int
+	err := db.Get(&count, "SELECT COUNT(*) FROM book WHERE category = ? AND status = 'active'", categoryName)
+	return count, err
+}
+
+// DeleteBookCategoryCascade 删除分类，同时删除该分类下的所有书籍（含图片记录）
+// 返回被删除书籍的图片 URL 列表，用于清理磁盘文件
+func DeleteBookCategoryCascade(db *sqlx.DB, categoryID int) ([]string, error) {
+	// 先查出分类名称
+	var cat BookCategory
+	if err := db.Get(&cat, "SELECT id, name, school_id, sort_order FROM book_categories WHERE id = ?", categoryID); err != nil {
+		return nil, fmt.Errorf("分类不存在")
+	}
+
+	tx, err := db.Beginx()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	// 获取该分类下所有书籍的图片 URL
+	var imageURLs []string
+	if err := tx.Select(&imageURLs, `SELECT bi.image_url FROM book_images bi
+		INNER JOIN book b ON bi.book_id = b.book_id
+		WHERE b.category = ?`, cat.Name); err != nil {
+		return nil, err
+	}
+
+	// 删除书籍的关联数据
+	tx.Exec("DELETE FROM book_wants WHERE book_id IN (SELECT book_id FROM book WHERE category = ?)", cat.Name)
+	tx.Exec("DELETE FROM book_images WHERE book_id IN (SELECT book_id FROM book WHERE category = ?)", cat.Name)
+
+	// 删除该分类下的所有书籍
+	if _, err := tx.Exec("DELETE FROM book WHERE category = ?", cat.Name); err != nil {
+		return nil, err
+	}
+
+	// 删除分类
+	if _, err := tx.Exec("DELETE FROM book_categories WHERE id = ?", categoryID); err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return imageURLs, nil
+}
+
+// GetBooksImagesByIDs 批量获取书籍图片，返回 map[bookID][]BookImage
+func GetBooksImagesByIDs(db *sqlx.DB, bookIDs []int) (map[int][]BookImage, error) {
+	if len(bookIDs) == 0 {
+		return make(map[int][]BookImage), nil
+	}
+
+	query, args, err := sqlx.In("SELECT id, book_id, image_url, sort_order FROM book_images WHERE book_id IN (?) ORDER BY sort_order", bookIDs)
+	if err != nil {
+		return nil, err
+	}
+	query = db.Rebind(query)
+
+	images := make([]BookImage, 0)
+	if err := db.Select(&images, query, args...); err != nil {
+		return nil, err
+	}
+
+	result := make(map[int][]BookImage, len(bookIDs))
+	for _, img := range images {
+		result[img.BookID] = append(result[img.BookID], img)
+	}
+
+	// Ensure every bookID has at least an empty slice
+	for _, id := range bookIDs {
+		if _, ok := result[id]; !ok {
+			result[id] = []BookImage{}
+		}
+	}
+
+	return result, nil
 }

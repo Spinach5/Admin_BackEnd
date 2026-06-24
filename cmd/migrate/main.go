@@ -231,6 +231,38 @@ func main() {
 		log.Println("  ✓ book.is_delivery 列已添加")
 	}
 
+	// 书籍表 — 添加 book_type 列（兼容旧表）
+	var bookTypeColCount int
+	appDB.Get(&bookTypeColCount, "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'book' AND COLUMN_NAME = 'book_type'")
+	if bookTypeColCount == 0 {
+		appDB.MustExec("ALTER TABLE book ADD COLUMN book_type TINYINT NOT NULL DEFAULT 1 COMMENT '1卖书 2找书'")
+		log.Println("  ✓ book.book_type 列已添加")
+	}
+
+	// 书籍表 — 添加 author 列（兼容旧表）
+	var bookAuthorColCount int
+	appDB.Get(&bookAuthorColCount, "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'book' AND COLUMN_NAME = 'author'")
+	if bookAuthorColCount == 0 {
+		appDB.MustExec("ALTER TABLE book ADD COLUMN author VARCHAR(100) COMMENT '作者'")
+		log.Println("  ✓ book.author 列已添加")
+	}
+
+	// 书籍表 — 添加 publisher 列（兼容旧表）
+	var bookPublisherColCount int
+	appDB.Get(&bookPublisherColCount, "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'book' AND COLUMN_NAME = 'publisher'")
+	if bookPublisherColCount == 0 {
+		appDB.MustExec("ALTER TABLE book ADD COLUMN publisher VARCHAR(100) COMMENT '出版社'")
+		log.Println("  ✓ book.publisher 列已添加")
+	}
+
+	// 书籍表 — 添加 cover_url 列（兼容旧表）
+	var bookCoverURLColCount int
+	appDB.Get(&bookCoverURLColCount, "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'book' AND COLUMN_NAME = 'cover_url'")
+	if bookCoverURLColCount == 0 {
+		appDB.MustExec("ALTER TABLE book ADD COLUMN cover_url VARCHAR(500) COMMENT '封面图片URL'")
+		log.Println("  ✓ book.cover_url 列已添加")
+	}
+
 	// 书籍图片表
 	appDB.MustExec(`
 		CREATE TABLE IF NOT EXISTS book_images (
