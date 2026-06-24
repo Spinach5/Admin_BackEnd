@@ -3,7 +3,6 @@ package handlers
 import (
 	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
 	"log"
 
 	"web-backend/internal/config"
@@ -40,9 +39,9 @@ func StudentRegister(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
-		// 前端发来的是 RSA 密文（>72字节），先 SHA-256 再 bcrypt
+		// 前端发来的是 RSA 密文，先 SHA-256 再 bcrypt（不可逆哈希，非加密）
 		sha := sha256.Sum256([]byte(req.Password))
-		hashed, err := bcrypt.GenerateFromPassword([]byte(hex.EncodeToString(sha[:])), bcrypt.DefaultCost)
+		hashed, err := bcrypt.GenerateFromPassword(sha[:], bcrypt.DefaultCost)
 		if err != nil {
 			log.Printf("密码哈希失败: %v", err)
 			dto.InternalError(c, "服务器错误")

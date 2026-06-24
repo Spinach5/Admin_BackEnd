@@ -15,7 +15,6 @@ type Book struct {
 	Author           *string `db:"author" json:"author"`
 	Publisher        *string `db:"publisher" json:"publisher"`
 	Category         *string `db:"category" json:"category"`
-	CoverURL         *string `db:"cover_url" json:"cover_url"`
 	ImageURL         *string `db:"image_url" json:"image_url"`
 	Price            *string `db:"price" json:"price"`
 	ISBN             *string `db:"isbn" json:"isbn"`
@@ -60,16 +59,16 @@ func GetBookByID(db *sqlx.DB, id int) (*BookWithUser, error) {
 }
 
 func CreateBook(db *sqlx.DB, b *Book) error {
-	_, err := db.Exec(`INSERT INTO book (title, author, publisher, cover_url, category, image_url, price, isbn, contact, user_id, status, book_type)
+	_, err := db.Exec(`INSERT INTO book (title, author, publisher, category, image_url, price, isbn, contact, user_id, status, book_type, school_id)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		b.Title, b.Author, b.Publisher, b.CoverURL, b.Category, b.ImageURL, b.Price, b.ISBN, b.Contact, b.UserID, b.Status, b.BookType)
+		b.Title, b.Author, b.Publisher, b.Category, b.ImageURL, b.Price, b.ISBN, b.Contact, b.UserID, b.Status, b.BookType, b.SchoolID)
 	return err
 }
 
 func UpdateBook(db *sqlx.DB, b *Book) error {
-	_, err := db.Exec(`UPDATE book SET title=?, author=?, publisher=?, cover_url=?, category=?, image_url=?, price=?, isbn=?, contact=?, status=?, book_type=?
+	_, err := db.Exec(`UPDATE book SET title=?, author=?, publisher=?, category=?, image_url=?, price=?, isbn=?, contact=?, status=?, book_type=?, school_id=?
 		WHERE book_id=?`,
-		b.Title, b.Author, b.Publisher, b.CoverURL, b.Category, b.ImageURL, b.Price, b.ISBN, b.Contact, b.Status, b.BookType, b.BookID)
+		b.Title, b.Author, b.Publisher, b.Category, b.ImageURL, b.Price, b.ISBN, b.Contact, b.Status, b.BookType, b.SchoolID, b.BookID)
 	return err
 }
 
@@ -332,9 +331,9 @@ func CreateBookWithImages(db *sqlx.DB, b *Book, imageURLs []string) error {
 	}
 	defer tx.Rollback()
 
-	result, err := tx.Exec(`INSERT INTO book (title, author, publisher, cover_url, category, image_url, price, isbn, contact, user_id, status, description, `+"`condition`"+`, school_id, is_delivery, book_type)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		b.Title, b.Author, b.Publisher, b.CoverURL, b.Category, b.ImageURL, b.Price, b.ISBN, b.Contact, b.UserID, b.Status, b.Description, b.Condition, b.SchoolID, b.IsDelivery, b.BookType)
+	result, err := tx.Exec(`INSERT INTO book (title, author, publisher, category, image_url, price, isbn, contact, user_id, status, description, `+"`condition`"+`, school_id, is_delivery, book_type)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		b.Title, b.Author, b.Publisher, b.Category, b.ImageURL, b.Price, b.ISBN, b.Contact, b.UserID, b.Status, b.Description, b.Condition, b.SchoolID, b.IsDelivery, b.BookType)
 	if err != nil {
 		return err
 	}
@@ -360,9 +359,9 @@ func UpdateBookWithImages(db *sqlx.DB, b *Book, imageURLs []string) error {
 	}
 	defer tx.Rollback()
 
-	_, err = tx.Exec(`UPDATE book SET title=?, author=?, publisher=?, cover_url=?, category=?, image_url=?, price=?, isbn=?, contact=?, status=?, description=?, `+"`condition`"+`=?, is_delivery=?, book_type=?
+	_, err = tx.Exec(`UPDATE book SET title=?, author=?, publisher=?, category=?, image_url=?, price=?, isbn=?, contact=?, status=?, description=?, `+"`condition`"+`=?, is_delivery=?, book_type=?
 		WHERE book_id=?`,
-		b.Title, b.Author, b.Publisher, b.CoverURL, b.Category, b.ImageURL, b.Price, b.ISBN, b.Contact, b.Status, b.Description, b.Condition, b.IsDelivery, b.BookType, b.BookID)
+		b.Title, b.Author, b.Publisher, b.Category, b.ImageURL, b.Price, b.ISBN, b.Contact, b.Status, b.Description, b.Condition, b.IsDelivery, b.BookType, b.BookID)
 	if err != nil {
 		return err
 	}

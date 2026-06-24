@@ -111,7 +111,7 @@ func V1CreateBook() gin.HandlerFunc {
 		}
 
 		// Accept JSON or form data
-		var title, author, publisher, coverURL, category, price, isbn, contact, description, condition, schoolID string
+		var title, author, publisher, category, price, isbn, contact, description, condition, schoolID string
 		var isDelivery int
 		var bookType int16
 		var imageURLs []string
@@ -122,7 +122,6 @@ func V1CreateBook() gin.HandlerFunc {
 				Name        string   `json:"name"`
 				Author      string   `json:"author"`
 				Publisher   string   `json:"publisher"`
-				CoverURL    string   `json:"cover_url"`
 				Category    string   `json:"category"`
 				Price       string   `json:"price"`
 				ISBN        string   `json:"isbn"`
@@ -133,21 +132,14 @@ func V1CreateBook() gin.HandlerFunc {
 				IsDelivery  int      `json:"is_delivery"`
 				BookType    int16    `json:"book_type"`
 				Images      []string `json:"images"`
-				StuID       string   `json:"stu_id"`
-				Password    string   `json:"password"`
 			}
 			if err := c.ShouldBindJSON(&req); err != nil {
 				dto.BadRequest(c, "参数错误")
 				return
 			}
-			if err := verifyBookCredentials(req.SchoolID, req.StuID, req.Password); err != nil {
-				dto.BadRequest(c, err.Error())
-				return
-			}
 			title = strings.TrimSpace(req.Name)
 			author = req.Author
 			publisher = req.Publisher
-			coverURL = req.CoverURL
 			category = req.Category
 			price = req.Price
 			isbn = req.ISBN
@@ -159,19 +151,9 @@ func V1CreateBook() gin.HandlerFunc {
 			bookType = req.BookType
 			imageURLs = req.Images
 		} else {
-			// 表单数据：从表单字段提取凭证
-			if err := verifyBookCredentials(
-				c.PostForm("school_id"),
-				c.PostForm("stu_id"),
-				c.PostForm("password"),
-			); err != nil {
-				dto.BadRequest(c, err.Error())
-				return
-			}
 			title = strings.TrimSpace(c.PostForm("title"))
 			author = c.PostForm("author")
 			publisher = c.PostForm("publisher")
-			coverURL = c.PostForm("cover_url")
 			category = c.PostForm("category")
 			price = c.PostForm("price")
 			isbn = c.PostForm("isbn")
@@ -252,7 +234,6 @@ func V1CreateBook() gin.HandlerFunc {
 			Title:       title,
 			Author:      strPtr(author),
 			Publisher:   strPtr(publisher),
-			CoverURL:    strPtr(coverURL),
 			Category:    strPtr(category),
 			ImageURL:    strPtr(firstImageURL),
 			Price:       strPtr(price),
@@ -296,7 +277,7 @@ func V1UpdateBook() gin.HandlerFunc {
 			return
 		}
 
-		var title, author, publisher, coverURL, category, price, isbn, contact, description, condition string
+		var title, author, publisher, category, price, isbn, contact, description, condition string
 		var isDelivery int
 		var bookType int16
 		var imageURLs []string
@@ -307,7 +288,6 @@ func V1UpdateBook() gin.HandlerFunc {
 				Name        string   `json:"name"`
 				Author      string   `json:"author"`
 				Publisher   string   `json:"publisher"`
-				CoverURL    string   `json:"cover_url"`
 				Category    string   `json:"category"`
 				Price       string   `json:"price"`
 				ISBN        string   `json:"isbn"`
@@ -318,21 +298,14 @@ func V1UpdateBook() gin.HandlerFunc {
 				BookType    int16    `json:"book_type"`
 				Images      []string `json:"images"`
 				SchoolID    string   `json:"school_id"`
-				StuID       string   `json:"stu_id"`
-				Password    string   `json:"password"`
 			}
 			if err := c.ShouldBindJSON(&req); err != nil {
 				dto.BadRequest(c, "参数错误")
 				return
 			}
-			if err := verifyBookCredentials(req.SchoolID, req.StuID, req.Password); err != nil {
-				dto.BadRequest(c, err.Error())
-				return
-			}
 			title = strings.TrimSpace(req.Name)
 			author = req.Author
 			publisher = req.Publisher
-			coverURL = req.CoverURL
 			category = req.Category
 			price = req.Price
 			isbn = req.ISBN
@@ -343,19 +316,9 @@ func V1UpdateBook() gin.HandlerFunc {
 			bookType = req.BookType
 			imageURLs = req.Images
 		} else {
-			// 表单数据：从表单字段提取凭证
-			if err := verifyBookCredentials(
-				c.PostForm("school_id"),
-				c.PostForm("stu_id"),
-				c.PostForm("password"),
-			); err != nil {
-				dto.BadRequest(c, err.Error())
-				return
-			}
 			title = strings.TrimSpace(c.PostForm("title"))
 			author = c.PostForm("author")
 			publisher = c.PostForm("publisher")
-			coverURL = c.PostForm("cover_url")
 			category = c.PostForm("category")
 			price = c.PostForm("price")
 			isbn = c.PostForm("isbn")
@@ -403,9 +366,6 @@ func V1UpdateBook() gin.HandlerFunc {
 		}
 		if publisher == "" {
 			publisher = ptrStrVal(existing.Publisher)
-		}
-		if coverURL == "" {
-			coverURL = ptrStrVal(existing.CoverURL)
 		}
 		if category == "" {
 			category = ptrStrVal(existing.Category)
@@ -469,7 +429,6 @@ func V1UpdateBook() gin.HandlerFunc {
 			Title:       title,
 			Author:      strPtr(author),
 			Publisher:   strPtr(publisher),
-			CoverURL:    strPtr(coverURL),
 			Category:    strPtr(category),
 			ImageURL:    strPtr(firstImageURL),
 			Price:       strPtr(price),
@@ -501,30 +460,6 @@ func V1DeleteBook() gin.HandlerFunc {
 			return
 		}
 
-		// 验证身份凭证（优先 JSON body，其次 query 参数）
-		var schoolID, stuID, password string
-		if c.ContentType() == "application/json" {
-			var creds struct {
-				SchoolID string `json:"school_id"`
-				StuID    string `json:"stu_id"`
-				Password string `json:"password"`
-			}
-			if err := c.ShouldBindJSON(&creds); err != nil {
-				dto.BadRequest(c, "参数错误")
-				return
-			}
-			schoolID, stuID, password = creds.SchoolID, creds.StuID, creds.Password
-		} else {
-			schoolID = c.Query("school_id")
-			stuID = c.Query("stu_id")
-			password = c.Query("password")
-		}
-		if err := verifyBookCredentials(schoolID, stuID, password); err != nil {
-			dto.BadRequest(c, err.Error())
-			return
-		}
-
-		// 硬删除：删除数据库记录和磁盘图片文件
 		imageURLs, err := models.HardDeleteBookByUser(database.DB, id, userID)
 		if err != nil {
 			dto.BadRequest(c, err.Error())

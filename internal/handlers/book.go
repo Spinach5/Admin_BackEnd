@@ -1,10 +1,6 @@
 package handlers
 
 import (
-	"crypto/sha256"
-	"database/sql"
-	"encoding/hex"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -18,7 +14,6 @@ import (
 	"web-backend/internal/models"
 
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // GetBooks 获取书籍列表
@@ -47,10 +42,7 @@ func GetBooks() gin.HandlerFunc {
 		result := make([]models.BookWithUserAndImages, len(books))
 		for i, b := range books {
 			if b.ImageURL != nil {
-				b.ImageURL = strPtr(ToAbsoluteURL(ptrStrVal(b.ImageURL)))
-			}
-			if b.CoverURL != nil {
-				b.CoverURL = strPtr(ToAbsoluteURL(ptrStrVal(b.CoverURL)))
+			b.ImageURL = strPtr(ToAbsoluteURL(ptrStrVal(b.ImageURL)))
 			}
 			imgs := imagesMap[b.BookID]
 			if imgs == nil {
@@ -93,7 +85,6 @@ func CreateBook() gin.HandlerFunc {
 		title := c.PostForm("title")
 		author := c.PostForm("author")
 		publisher := c.PostForm("publisher")
-		coverURL := c.PostForm("cover_url")
 		category := c.PostForm("category")
 		price := c.PostForm("price")
 		isbn := c.PostForm("isbn")
@@ -135,11 +126,15 @@ func CreateBook() gin.HandlerFunc {
 
 		userID := middleware.GetCurrentUserID(c)
 
+		schoolID := c.PostForm("school_id")
+		if schoolID == "" {
+			schoolID = "hbut"
+		}
+
 		book := &models.Book{
 			Title:     title,
 			Author:    strPtr(author),
 			Publisher: strPtr(publisher),
-			CoverURL:  strPtr(coverURL),
 			Category:  strPtr(category),
 			ImageURL:  strPtr(imageURL),
 			Price:     strPtr(price),
@@ -148,6 +143,7 @@ func CreateBook() gin.HandlerFunc {
 			UserID:    userID,
 			Status:    status,
 			BookType:  bookType,
+			SchoolID:  schoolID,
 		}
 
 		if err := models.CreateBook(database.DB, book); err != nil {
@@ -211,7 +207,6 @@ func UpdateBook() gin.HandlerFunc {
 			Title:     title,
 			Author:    strPtr(coalesceForm(c, "author", ptrStrVal(existing.Author))),
 			Publisher: strPtr(coalesceForm(c, "publisher", ptrStrVal(existing.Publisher))),
-			CoverURL:  strPtr(coalesceForm(c, "cover_url", ptrStrVal(existing.CoverURL))),
 			Category:  strPtr(category),
 			ImageURL:  strPtr(imageURL),
 			Price:     strPtr(c.PostForm("price")),
@@ -219,6 +214,7 @@ func UpdateBook() gin.HandlerFunc {
 			Contact:   strPtr(c.PostForm("contact")),
 			Status:    existing.Status,
 			BookType:  existing.BookType,
+			SchoolID:  coalesceForm(c, "school_id", existing.SchoolID),
 		}
 
 		stat := c.PostForm("status")
@@ -367,9 +363,6 @@ func fixBookImageURLs(books []models.BookWithUser) {
 		if books[i].ImageURL != nil {
 			books[i].ImageURL = strPtr(ToAbsoluteURL(ptrStrVal(books[i].ImageURL)))
 		}
-		if books[i].CoverURL != nil {
-			books[i].CoverURL = strPtr(ToAbsoluteURL(ptrStrVal(books[i].CoverURL)))
-		}
 	}
 }
 
@@ -377,9 +370,6 @@ func fixBookImageURLs(books []models.BookWithUser) {
 func fixBookDetailImageURLs(detail *models.BookDetail) {
 	if detail.ImageURL != nil {
 		detail.ImageURL = strPtr(ToAbsoluteURL(ptrStrVal(detail.ImageURL)))
-	}
-	if detail.CoverURL != nil {
-		detail.CoverURL = strPtr(ToAbsoluteURL(ptrStrVal(detail.CoverURL)))
 	}
 	for i := range detail.Images {
 		detail.Images[i].ImageURL = ToAbsoluteURL(detail.Images[i].ImageURL)
@@ -504,37 +494,3 @@ func GetBookCategoriesWithCount() gin.HandlerFunc {
 	}
 }
 
-// ---- 本地身份验证 ----
-
-// verifyBookCredentials 本地验证用户身份（学号+学校+密码）
-// 前端传来的 password 是 RSA 加密后的密文，与注册时相同的 SHA-256 → bcrypt 流程
-func verifyBookCredentials(schoolID, stuID, password string) error {
-	// 1. 数据合理性验证
-	if schoolID == "" || stuID == "" || password == "" {
-		return fmt.Errorf("缺少身份验证参数 (school_id, stu_id, password)")
-	}
-	if len(schoolID) > 50 {
-		return fmt.Errorf("学校ID格式不正确")
-	}
-	if len(stuID) > 30 {
-		return fmt.Errorf("学号格式不正确")
-	}
-
-	// 2. 查询用户是否存在
-	user, err := models.GetUserByStuIDAndSchoolIDWithPassword(database.DB, stuID, schoolID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return fmt.Errorf("账户不存在，请先注册")
-		}
-		log.Printf("验证凭证查询用户失败: %v", err)
-		return fmt.Errorf("服务器错误")
-	}
-
-	// 3. 验证密码：RSA 密文 → SHA-256 → bcrypt 比对
-	sha := sha256.Sum256([]byte(password))
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(hex.EncodeToString(sha[:]))); err != nil {
-		return fmt.Errorf("密码错误")
-	}
-
-	return nil
-}

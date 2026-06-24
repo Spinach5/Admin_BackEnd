@@ -255,12 +255,12 @@ func main() {
 		log.Println("  ✓ book.publisher 列已添加")
 	}
 
-	// 书籍表 — 添加 cover_url 列（兼容旧表）
+	// 书籍表 — 删除 cover_url 列（回退，改用 image_url + book_images 首图作为封面）
 	var bookCoverURLColCount int
 	appDB.Get(&bookCoverURLColCount, "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'book' AND COLUMN_NAME = 'cover_url'")
-	if bookCoverURLColCount == 0 {
-		appDB.MustExec("ALTER TABLE book ADD COLUMN cover_url VARCHAR(500) COMMENT '封面图片URL'")
-		log.Println("  ✓ book.cover_url 列已添加")
+	if bookCoverURLColCount > 0 {
+		appDB.MustExec("ALTER TABLE book DROP COLUMN cover_url")
+		log.Println("  ✓ book.cover_url 列已删除")
 	}
 
 	// 书籍图片表
