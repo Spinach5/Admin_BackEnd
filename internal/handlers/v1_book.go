@@ -432,12 +432,25 @@ func V1DeleteBook() gin.HandlerFunc {
 			return
 		}
 
-		// 验证教务系统凭证（DELETE 请求从 query 参数获取）
-		if err := verifyBookCredentials(
-			c.Query("school_id"),
-			c.Query("stu_id"),
-			c.Query("password"),
-		); err != nil {
+		// 验证身份凭证（优先 JSON body，其次 query 参数）
+		var schoolID, stuID, password string
+		if c.ContentType() == "application/json" {
+			var creds struct {
+				SchoolID string `json:"school_id"`
+				StuID    string `json:"stu_id"`
+				Password string `json:"password"`
+			}
+			if err := c.ShouldBindJSON(&creds); err != nil {
+				dto.BadRequest(c, "参数错误")
+				return
+			}
+			schoolID, stuID, password = creds.SchoolID, creds.StuID, creds.Password
+		} else {
+			schoolID = c.Query("school_id")
+			stuID = c.Query("stu_id")
+			password = c.Query("password")
+		}
+		if err := verifyBookCredentials(schoolID, stuID, password); err != nil {
 			dto.BadRequest(c, err.Error())
 			return
 		}
