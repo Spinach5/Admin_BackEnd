@@ -4,7 +4,9 @@ import (
 	"strings"
 
 	"web-backend/internal/config"
+	"web-backend/internal/database"
 	"web-backend/internal/dto"
+	"web-backend/internal/models"
 	"web-backend/internal/services"
 
 	"github.com/gin-gonic/gin"
@@ -35,8 +37,13 @@ func StudentAuth(cfg *config.Config) gin.HandlerFunc {
 
 		c.Set("student_user_id", claims.UserID)
 
-		// 令牌永不过期，仅在用户主动注销时失效
-		// 心跳端点 /api/v1/auth/heartbeat 仍可用于更新 last_active_at（用于统计/监控）
+		// 检查账户是否被冻结
+		frozen, err := models.IsUserFrozen(database.DB, claims.UserID)
+		if err == nil && frozen {
+			dto.Forbidden(c, "账户已被冻结，请联系管理员")
+			c.Abort()
+			return
+		}
 
 		c.Next()
 	}

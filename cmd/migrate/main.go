@@ -157,6 +157,13 @@ func main() {
 			log.Println("  ✓ users.last_active_at 列已添加")
 		}
 
+		// 添加 is_frozen 列（兼容旧表）
+		var usersFrozenColCount int
+		appDB.Get(&usersFrozenColCount, "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'is_frozen'")
+		if usersFrozenColCount == 0 {
+			appDB.MustExec("ALTER TABLE users ADD COLUMN is_frozen TINYINT(1) NOT NULL DEFAULT 0 COMMENT '冻结标记: 0正常 1冻结'")
+			log.Println("  ✓ users.is_frozen 列已添加")
+		}
 
 		// 社团表
 		appDB.MustExec(`
@@ -318,6 +325,34 @@ func main() {
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 	`)
 	log.Println("  ✓ book_wants")
+
+	// 聊天会话表
+	appDB.MustExec(`
+		CREATE TABLE IF NOT EXISTS conversation (
+			id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			book_id INT UNSIGNED NOT NULL,
+			buyer_id INT UNSIGNED NOT NULL,
+			seller_id INT UNSIGNED NOT NULL,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			UNIQUE KEY uk_book_buyer_seller (book_id, buyer_id, seller_id),
+			FOREIGN KEY (book_id) REFERENCES book(book_id) ON DELETE CASCADE
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+	`)
+	log.Println("  ✓ conversation")
+
+	// 聊天消息表
+	appDB.MustExec(`
+		CREATE TABLE IF NOT EXISTS message (
+			id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			conversation_id INT UNSIGNED NOT NULL,
+			sender_id INT UNSIGNED NOT NULL,
+			content TEXT NOT NULL,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (conversation_id) REFERENCES conversation(id) ON DELETE CASCADE
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+	`)
+	log.Println("  ✓ message")
 
 	// 插入默认管理员账号
 	var count int

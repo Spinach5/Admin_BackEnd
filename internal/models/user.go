@@ -12,29 +12,30 @@ type User struct {
 	PasswordHash string `db:"password_hash" json:"-"`
 	CreatedAt string `db:"createdAt" json:"createdAt"`
 	IsDeleted int    `db:"isDeleted" json:"isDeleted"`
+	IsFrozen  int    `db:"is_frozen" json:"is_frozen"`
 }
 
 func GetAllUsers(db *sqlx.DB) ([]User, error) {
 	users := make([]User, 0)
-	err := db.Select(&users, "SELECT id, stuId, nickName, schoolId, createdAt, isDeleted FROM users WHERE isDeleted = 0 ORDER BY id")
+	err := db.Select(&users, "SELECT id, stuId, nickName, schoolId, createdAt, isDeleted, is_frozen FROM users WHERE isDeleted = 0 ORDER BY id")
 	return users, err
 }
 
 func GetUserByID(db *sqlx.DB, id int) (*User, error) {
 	var user User
-	err := db.Get(&user, "SELECT id, stuId, nickName, schoolId, createdAt, isDeleted FROM users WHERE id = ?", id)
+	err := db.Get(&user, "SELECT id, stuId, nickName, schoolId, createdAt, isDeleted, is_frozen FROM users WHERE id = ?", id)
 	return &user, err
 }
 
 func GetUserByStuID(db *sqlx.DB, stuID string) (*User, error) {
 	var user User
-	err := db.Get(&user, "SELECT id, stuId, nickName, schoolId, createdAt, isDeleted FROM users WHERE stuId = ? AND isDeleted = 0", stuID)
+	err := db.Get(&user, "SELECT id, stuId, nickName, schoolId, createdAt, isDeleted, is_frozen FROM users WHERE stuId = ? AND isDeleted = 0", stuID)
 	return &user, err
 }
 
 func GetUserByStuIDAndSchoolID(db *sqlx.DB, stuID, schoolID string) (*User, error) {
 	var user User
-	err := db.Get(&user, "SELECT id, stuId, nickName, schoolId, createdAt, isDeleted FROM users WHERE stuId = ? AND schoolId = ? AND isDeleted = 0", stuID, schoolID)
+	err := db.Get(&user, "SELECT id, stuId, nickName, schoolId, createdAt, isDeleted, is_frozen FROM users WHERE stuId = ? AND schoolId = ? AND isDeleted = 0", stuID, schoolID)
 	return &user, err
 }
 
@@ -63,7 +64,7 @@ func CreateUserWithPassword(db *sqlx.DB, u *User) error {
 func GetUserByStuIDAndSchoolIDWithPassword(db *sqlx.DB, stuID, schoolID string) (*User, error) {
 	var user User
 	err := db.Get(&user,
-		"SELECT id, stuId, nickName, schoolId, password_hash, createdAt, isDeleted FROM users WHERE stuId = ? AND schoolId = ? AND isDeleted = 0",
+		"SELECT id, stuId, nickName, schoolId, password_hash, createdAt, isDeleted, is_frozen FROM users WHERE stuId = ? AND schoolId = ? AND isDeleted = 0",
 		stuID, schoolID,
 	)
 	if err != nil {
@@ -75,7 +76,7 @@ func GetUserByStuIDAndSchoolIDWithPassword(db *sqlx.DB, stuID, schoolID string) 
 func GetUserByStuIDWithPassword(db *sqlx.DB, stuID string) (*User, error) {
 	var user User
 	err := db.Get(&user,
-		"SELECT id, stuId, nickName, schoolId, password_hash, createdAt, isDeleted FROM users WHERE stuId = ? AND isDeleted = 0",
+		"SELECT id, stuId, nickName, schoolId, password_hash, createdAt, isDeleted, is_frozen FROM users WHERE stuId = ? AND isDeleted = 0",
 		stuID,
 	)
 	if err != nil {
@@ -113,6 +114,21 @@ func HardDeleteUser(db *sqlx.DB, id int) error {
 func UpdateUserLastActive(db *sqlx.DB, userID int) error {
 	_, err := db.Exec("UPDATE users SET last_active_at = NOW() WHERE id = ?", userID)
 	return err
+}
+
+func SetUserFrozen(db *sqlx.DB, userID int, frozen bool) error {
+	v := 0
+	if frozen {
+		v = 1
+	}
+	_, err := db.Exec("UPDATE users SET is_frozen = ? WHERE id = ?", v, userID)
+	return err
+}
+
+func IsUserFrozen(db *sqlx.DB, userID int) (bool, error) {
+	var v int
+	err := db.Get(&v, "SELECT is_frozen FROM users WHERE id = ?", userID)
+	return v == 1, err
 }
 
 func GetUserLastActive(db *sqlx.DB, userID int) (string, error) {

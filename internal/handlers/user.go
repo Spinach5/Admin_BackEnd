@@ -140,3 +140,34 @@ func HardDeleteUser() gin.HandlerFunc {
 		dto.SuccessMessage(c, "删除用户成功")
 	}
 }
+
+// SetUserFrozen 冻结/解冻用户
+func SetUserFrozen() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			dto.BadRequest(c, "无效的用户ID")
+			return
+		}
+
+		var req struct {
+			Frozen bool `json:"frozen"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			dto.BadRequest(c, "参数错误")
+			return
+		}
+
+		if err := models.SetUserFrozen(database.DB, id, req.Frozen); err != nil {
+			log.Printf("设置冻结状态失败: %v", err)
+			dto.InternalError(c, "操作失败")
+			return
+		}
+
+		msg := "已解冻"
+		if req.Frozen {
+			msg = "已冻结"
+		}
+		dto.SuccessMessage(c, msg)
+	}
+}

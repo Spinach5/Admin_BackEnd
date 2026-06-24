@@ -83,6 +83,7 @@ func main() {
 			{
 				userDeletion.DELETE("/:id", handlers.SoftDeleteUser())
 				userDeletion.DELETE("/:id/hard", handlers.HardDeleteUser())
+				userDeletion.PUT("/:id/freeze", handlers.SetUserFrozen())
 			}
 
 			// 书籍管理
@@ -94,6 +95,7 @@ func main() {
 			authorized.GET("/books", handlers.GetBooks())
 			authorized.GET("/books/:id", handlers.GetBookByID())
 			authorized.POST("/books", handlers.CreateBook())
+			authorized.POST("/books/upload-image", handlers.V1UploadBookImage())
 			authorized.PUT("/books/:id", handlers.UpdateBook())
 			authorized.DELETE("/books/:id", handlers.DeleteBook())
 
@@ -129,6 +131,11 @@ func main() {
 			authorized.PUT("/affair-categories/:id", handlers.UpdateAffairCategory())
 			authorized.DELETE("/affair-categories/:id", handlers.DeleteAffairCategory())
 
+			// 聊天管理 (管理员)
+			authorized.GET("/conversations/user/:userId", handlers.AdminGetConversationsByUser())
+			authorized.GET("/conversations/:id/messages", handlers.AdminGetConversationMessages())
+			authorized.DELETE("/conversations/:id", handlers.AdminDeleteConversation())
+
 			// Excel 导入
 			authorized.POST("/excel/import", handlers.ImportExcel())
 			authorized.POST("/excel/preview", handlers.PreviewExcel())
@@ -163,6 +170,10 @@ func main() {
 				v1Auth.POST("/books/:id/want", handlers.V1ToggleWant())
 				v1Auth.GET("/foods", handlers.V1GetFoods())
 				v1Auth.GET("/foods/filters", handlers.V1GetFoodFilters())
+				v1Auth.POST("/conversations", handlers.V1CreateConversation())
+				v1Auth.GET("/conversations", handlers.V1GetConversations())
+				v1Auth.GET("/conversations/:id/messages", handlers.V1GetMessages())
+				v1Auth.POST("/conversations/:id/messages", handlers.V1SendMessage())
 			}
 		}
 	}

@@ -60,7 +60,7 @@ func GetBookByID(db *sqlx.DB, id int) (*BookWithUser, error) {
 
 func CreateBook(db *sqlx.DB, b *Book) error {
 	_, err := db.Exec(`INSERT INTO book (title, author, publisher, category, image_url, price, isbn, contact, user_id, status, book_type, school_id)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		b.Title, b.Author, b.Publisher, b.Category, b.ImageURL, b.Price, b.ISBN, b.Contact, b.UserID, b.Status, b.BookType, b.SchoolID)
 	return err
 }
