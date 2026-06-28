@@ -107,8 +107,35 @@ func SoftDeleteUser(db *sqlx.DB, id int) error {
 }
 
 func HardDeleteUser(db *sqlx.DB, id int) error {
-	_, err := db.Exec("DELETE FROM users WHERE id = ?", id)
-	return err
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// 1. 删除该用户发送的所有消息（message.sender_id 无外键约束）
+	if _, err := tx.Exec("DELETE FROM message WHERE sender_id = ?", id); err != nil {
+		return err
+	}
+
+	// 2. 删除该用户参与的所有会话（conversation.buyer_id/seller_id 无外键约束）
+	//    关联的 message 会通过 ON DELETE CASCADE 自动删除
+	if _, err := tx.Exec("DELETE FROM conversation WHERE buyer_id = ? OR seller_id = ?", id, id); err != nil {
+		return err
+	}
+
+	// 3. 删除该用户发布的书籍（book.user_id 无外键约束）
+	//    关联的 book_images、book_wants 会通过 ON DELETE CASCADE 自动删除
+	if _, err := tx.Exec("DELETE FROM book WHERE user_id = ?", id); err != nil {
+		return err
+	}
+
+	// 4. 硬删除用户（clubs.principal_id → SET NULL, purchase.buyer_id → CASCADE, book_wants.user_id → CASCADE 由数据库FK自动处理）
+	if _, err := tx.Exec("DELETE FROM users WHERE id = ?", id); err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 func UpdateUserLastActive(db *sqlx.DB, userID int) error {

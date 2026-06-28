@@ -187,6 +187,17 @@ func main() {
 			appDB.MustExec("ALTER TABLE clubs ADD COLUMN principal_id INT(10) UNSIGNED DEFAULT NULL")
 			appDB.MustExec("ALTER TABLE clubs ADD FOREIGN KEY (principal_id) REFERENCES users(id) ON DELETE SET NULL")
 			log.Println("  ✓ clubs.principal_id 列已添加")
+		} else {
+			// 修复旧的外键约束：确保 ON DELETE SET NULL（旧版本可能创建了 RESTRICT）
+			var clubsFkDeleteRule string
+			appDB.Get(&clubsFkDeleteRule, "SELECT DELETE_RULE FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'clubs' AND CONSTRAINT_NAME = 'fk_clubs_principal'")
+			if clubsFkDeleteRule != "SET NULL" {
+				appDB.MustExec("ALTER TABLE clubs DROP FOREIGN KEY fk_clubs_principal")
+				// 确保列可为 NULL
+				appDB.MustExec("ALTER TABLE clubs MODIFY COLUMN principal_id INT(10) UNSIGNED DEFAULT NULL")
+				appDB.MustExec("ALTER TABLE clubs ADD CONSTRAINT fk_clubs_principal FOREIGN KEY (principal_id) REFERENCES users(id) ON DELETE SET NULL")
+				log.Println("  ✓ clubs.fk_clubs_principal 已修复为 ON DELETE SET NULL")
+			}
 		}
 
 	// 书籍表
@@ -353,6 +364,28 @@ func main() {
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 	`)
 	log.Println("  ✓ message")
+
+	// 购买记录表
+	appDB.MustExec(`
+		CREATE TABLE IF NOT EXISTS purchase (
+			purchase_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			book_id INT UNSIGNED NOT NULL,
+			buyer_id INT UNSIGNED NOT NULL,
+			purchase_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (book_id) REFERENCES book(book_id),
+			FOREIGN KEY (buyer_id) REFERENCES users(id) ON DELETE CASCADE
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+	`)
+	log.Println("  ✓ purchase")
+
+	// 修复 purchase 外键约束（确保 ON DELETE CASCADE）
+	var purchaseFkDeleteRule string
+	appDB.Get(&purchaseFkDeleteRule, "SELECT DELETE_RULE FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'purchase' AND CONSTRAINT_NAME = 'fk_purchase_user'")
+	if purchaseFkDeleteRule != "" && purchaseFkDeleteRule != "CASCADE" {
+		appDB.MustExec("ALTER TABLE purchase DROP FOREIGN KEY fk_purchase_user")
+		appDB.MustExec("ALTER TABLE purchase ADD CONSTRAINT fk_purchase_user FOREIGN KEY (buyer_id) REFERENCES users(id) ON DELETE CASCADE")
+		log.Println("  ✓ purchase.fk_purchase_user 已修复为 ON DELETE CASCADE")
+	}
 
 	// 插入默认管理员账号
 	var count int

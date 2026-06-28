@@ -33,10 +33,14 @@ func StudentRegister(cfg *config.Config) gin.HandlerFunc {
 		}
 
 		// 教务系统凭证验证（内部通过云函数 captcha 自动求解滑块）
-		if err := services.VerifySchoolCredentials(req.SchoolID, req.StuID, req.Password); err != nil {
-			log.Printf("教务系统验证失败 stuId=%s schoolId=%s: %v", req.StuID, req.SchoolID, err)
-			dto.BadRequest(c, err.Error())
-			return
+		if !cfg.SkipEduVerify {
+			if err := services.VerifySchoolCredentials(req.SchoolID, req.StuID, req.Password); err != nil {
+				log.Printf("教务系统验证失败 stuId=%s schoolId=%s: %v", req.StuID, req.SchoolID, err)
+				dto.BadRequest(c, err.Error())
+				return
+			}
+		} else {
+			log.Printf("跳过教务系统验证 stuId=%s schoolId=%s (SKIP_EDU_VERIFY=true)", req.StuID, req.SchoolID)
 		}
 
 		// 前端发来的是 RSA 密文，先 SHA-256 再 bcrypt（不可逆哈希，非加密）

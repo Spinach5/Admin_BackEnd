@@ -21,6 +21,7 @@ type Config struct {
 	FrontendURLs   []string
 	UploadDir      string
 	BaseURL        string
+	SkipEduVerify  bool
 }
 
 func Load() *Config {
@@ -40,6 +41,7 @@ func Load() *Config {
 		FrontendURLs:   getEnvAsSlice("FRONTEND_URLS", "FRONTEND_URL"),
 		UploadDir:      getEnv("UPLOAD_DIR", "./uploads"),
 		BaseURL:        getEnv("BASE_URL", ""),
+		SkipEduVerify:  getEnv("SKIP_EDU_VERIFY", "false") == "true",
 	}
 }
 
