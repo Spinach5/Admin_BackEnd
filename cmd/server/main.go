@@ -42,6 +42,9 @@ func main() {
 	{
 		api.GET("/health", handlers.HealthCheck)
 
+		// 验证码滑块计算 (无需登录)
+		api.POST("/captcha/solve", handlers.CaptchaSolve(cfg))
+
 		// 认证路由 (无需登录)
 		auth := api.Group("/auth")
 		{

@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 
+	"web-backend/internal/config"
 	"web-backend/internal/dto"
 
 	"github.com/gin-gonic/gin"
@@ -17,8 +18,8 @@ type captchaSolveReq struct {
 	CutoutImage string `json:"cutoutImage"`
 }
 
-// CaptchaSolve 内部端点，转发到本地 Python slider-solver 微服务
-func CaptchaSolve() gin.HandlerFunc {
+// CaptchaSolve 滑块缺口距离计算，转发到 Python captcha 微服务
+func CaptchaSolve(cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req captchaSolveReq
 		if err := c.ShouldBindJSON(&req); err != nil || req.ShadeImage == "" || req.CutoutImage == "" {
@@ -27,10 +28,11 @@ func CaptchaSolve() gin.HandlerFunc {
 		}
 
 		body, _ := json.Marshal(req)
-		resp, err := http.Post("http://127.0.0.1:5001/solve", "application/json", bytes.NewReader(body))
+		url := cfg.CaptchaServiceURL + "/solve"
+		resp, err := http.Post(url, "application/json", bytes.NewReader(body))
 		if err != nil {
 			log.Printf("[CaptchaSolve] 调用求解服务失败: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"x": 0})
+			dto.InternalError(c, "验证码服务不可用")
 			return
 		}
 		defer resp.Body.Close()
@@ -42,10 +44,10 @@ func CaptchaSolve() gin.HandlerFunc {
 		}
 		if json.Unmarshal(data, &result) != nil || result.Error != "" {
 			log.Printf("[CaptchaSolve] 求解失败: %s", string(data))
-			c.JSON(http.StatusInternalServerError, gin.H{"x": 0})
+			dto.InternalError(c, "滑块计算失败")
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"x": result.X})
+		dto.Success(c, gin.H{"x": result.X})
 	}
 }

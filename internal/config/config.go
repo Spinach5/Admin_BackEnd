@@ -21,7 +21,8 @@ type Config struct {
 	FrontendURLs   []string
 	UploadDir      string
 	BaseURL        string
-	SkipEduVerify  bool
+	SkipEduVerify      bool
+	CaptchaServiceURL  string
 }
 
 func Load() *Config {
@@ -41,7 +42,8 @@ func Load() *Config {
 		FrontendURLs:   getEnvAsSlice("FRONTEND_URLS", "FRONTEND_URL"),
 		UploadDir:      getEnv("UPLOAD_DIR", "./uploads"),
 		BaseURL:        getEnv("BASE_URL", ""),
-		SkipEduVerify:  getEnv("SKIP_EDU_VERIFY", "false") == "true",
+		SkipEduVerify:     getEnv("SKIP_EDU_VERIFY", "false") == "true",
+		CaptchaServiceURL: getEnv("CAPTCHA_SERVICE_URL", "http://127.0.0.1:9999"),
 	}
 }
 
