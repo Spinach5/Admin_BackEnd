@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 
 	"web-backend/internal/config"
 	"web-backend/internal/dto"
@@ -28,7 +29,11 @@ func CaptchaSolve(cfg *config.Config) gin.HandlerFunc {
 		}
 
 		body, _ := json.Marshal(req)
-		url := cfg.CaptchaServiceURL + "/solve"
+		serviceURL := cfg.CaptchaServiceURL
+		if !strings.HasPrefix(serviceURL, "http://") && !strings.HasPrefix(serviceURL, "https://") {
+			serviceURL = "http://" + serviceURL
+		}
+		url := serviceURL + "/solve"
 		resp, err := http.Post(url, "application/json", bytes.NewReader(body))
 		if err != nil {
 			log.Printf("[CaptchaSolve] 调用求解服务失败: %v", err)
