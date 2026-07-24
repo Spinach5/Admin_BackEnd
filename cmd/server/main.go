@@ -142,6 +142,14 @@ func main() {
 			// Excel 导入
 			authorized.POST("/excel/import", handlers.ImportExcel())
 			authorized.POST("/excel/preview", handlers.PreviewExcel())
+
+			// 教材管理
+			authorized.GET("/materials", handlers.GetMaterials())
+			authorized.POST("/materials", handlers.CreateMaterial())
+			authorized.PUT("/materials/:id", handlers.UpdateMaterial())
+			authorized.DELETE("/materials/:id", handlers.DeleteMaterial())
+
+
 		}
 
 		// V1 学生接口 (JWT)
