@@ -398,5 +398,78 @@ func main() {
 		log.Println("管理员账号已存在，跳过")
 	}
 
+	// ============ 教材管理相关表 ============
+	appDB.MustExec(`
+		CREATE TABLE IF NOT EXISTS materials (
+			book_id     INT PRIMARY KEY AUTO_INCREMENT COMMENT '教材ID',
+			isbn        VARCHAR(20) UNIQUE NOT NULL COMMENT '教材(ISBN)',
+			title       VARCHAR(200) NOT NULL COMMENT '书名',
+			author      VARCHAR(100) COMMENT '作者',
+			publisher   VARCHAR(100) COMMENT '出版社',
+			price       DECIMAL(10, 2) COMMENT '单价',
+			created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+			extra_info  VARCHAR(100) COMMENT '备注信息',
+			INDEX idx_isbn (isbn),
+			INDEX idx_title (title)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='书籍信息表'
+	`)
+	log.Println("  ✓ materials")
+
+	appDB.MustExec(`
+		CREATE TABLE IF NOT EXISTS classes (
+			class_id      INT PRIMARY KEY AUTO_INCREMENT COMMENT '班级ID',
+			class_name    VARCHAR(50) NOT NULL COMMENT '班级名称，如"24软件工程3班"',
+			grade         INT COMMENT '年级，如2024',
+			major         VARCHAR(50) COMMENT '专业，如"软件工程"',
+			department    VARCHAR(50) COMMENT '院系',
+			student_count INT DEFAULT 0 COMMENT '班级人数',
+			created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+			UNIQUE KEY uk_class_name (class_name),
+			INDEX idx_grade_major (grade, major)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='班级信息表'
+	`)
+	log.Println("  ✓ classes")
+
+	appDB.MustExec(`
+		CREATE TABLE IF NOT EXISTS book_packages (
+			package_id   INT PRIMARY KEY AUTO_INCREMENT COMMENT '教材包ID',
+			package_name VARCHAR(100) NOT NULL COMMENT '教材包名称',
+			grade        INT COMMENT '适用年级',
+			major        VARCHAR(50) COMMENT '适用专业',
+			semester     VARCHAR(20) COMMENT '学期',
+			description  VARCHAR(255) COMMENT '描述',
+			created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+			INDEX idx_grade_major_semester (grade, major, semester)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='教材包表'
+	`)
+	log.Println("  ✓ book_packages")
+
+	appDB.MustExec(`
+		CREATE TABLE IF NOT EXISTS package_books (
+			id          INT PRIMARY KEY AUTO_INCREMENT COMMENT '明细ID',
+			package_id  INT NOT NULL COMMENT '所属教材包ID',
+			book_id     INT NOT NULL COMMENT '书籍ID',
+			quantity    INT DEFAULT 1 COMMENT '数量',
+			is_required BOOLEAN DEFAULT TRUE COMMENT '是否必修',
+			FOREIGN KEY (package_id) REFERENCES book_packages(package_id) ON DELETE CASCADE,
+			FOREIGN KEY (book_id) REFERENCES materials(book_id) ON DELETE CASCADE,
+			UNIQUE KEY uk_package_book (package_id, book_id)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='教材包明细表'
+	`)
+	log.Println("  ✓ package_books")
+
+	appDB.MustExec(`
+		CREATE TABLE IF NOT EXISTS class_packages (
+			id            INT PRIMARY KEY AUTO_INCREMENT COMMENT '关联ID',
+			class_id      INT NOT NULL COMMENT '班级ID',
+			package_id    INT NOT NULL COMMENT '教材包ID',
+			academic_year VARCHAR(20) COMMENT '学年',
+			FOREIGN KEY (class_id) REFERENCES classes(class_id) ON DELETE CASCADE,
+			FOREIGN KEY (package_id) REFERENCES book_packages(package_id) ON DELETE CASCADE,
+			UNIQUE KEY uk_class_package (class_id, package_id)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='班级-教材包关联表'
+	`)
+	log.Println("  ✓ class_packages")
+
 	log.Println("数据库迁移完成!")
 }

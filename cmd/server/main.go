@@ -148,7 +148,9 @@ func main() {
 			authorized.POST("/materials", handlers.CreateMaterial())
 			authorized.PUT("/materials/:id", handlers.UpdateMaterial())
 			authorized.DELETE("/materials/:id", handlers.DeleteMaterial())
-
+			authorized.POST("/materials/import", handlers.ImportMaterialsExcel())
+			authorized.POST("/materials/preview", handlers.PreviewMaterialsExcel())
+			authorized.GET("/materials/classes", handlers.V1GetClasses())
 
 		}
 
@@ -181,6 +183,9 @@ func main() {
 				v1Auth.POST("/books/:id/want", handlers.V1ToggleWant())
 				v1Auth.GET("/foods", handlers.V1GetFoods())
 				v1Auth.GET("/foods/filters", handlers.V1GetFoodFilters())
+				v1Auth.GET("/materials", handlers.V1GetMaterials())
+				v1Auth.GET("/materials/classes", handlers.V1GetClasses())
+				v1Auth.GET("/materials/:id", handlers.V1GetMaterialByID())
 				v1Auth.POST("/conversations", handlers.V1CreateConversation())
 				v1Auth.GET("/conversations", handlers.V1GetConversations())
 				v1Auth.GET("/conversations/:id/messages", handlers.V1GetMessages())

@@ -169,3 +169,27 @@ type UpdateClubRequest struct {
 	Contact      *string `json:"contact"`
 	PrincipalID  *int    `json:"principal_id"`
 }
+
+// ============ 教材管理 ============
+
+type CreateMaterialRequest struct {
+	ISBN      string  `json:"isbn" binding:"required"`
+	Title     string  `json:"title" binding:"required"`
+	Author    string  `json:"author"`
+	Publisher string  `json:"publisher"`
+	Price     float64 `json:"price"`
+	ExtraInfo string  `json:"extra_info"`
+	// 关联到教材包（可选）
+	Semester     string   `json:"semester"`
+	AcademicYear string   `json:"academic_year"`
+	ClassNames   []string `json:"class_names"`
+}
+
+type UpdateMaterialRequest struct {
+	ISBN      string  `json:"isbn" binding:"required"`
+	Title     string  `json:"title" binding:"required"`
+	Author    string  `json:"author"`
+	Publisher string  `json:"publisher"`
+	Price     float64 `json:"price"`
+	ExtraInfo string  `json:"extra_info"`
+}
