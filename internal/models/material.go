@@ -70,6 +70,28 @@ type MaterialDetail struct {
 	Quantity   int    `json:"quantity,omitempty"`
 }
 
+// CleanISBN 清理 ISBN，去除多余后缀（如 /52355-00），保留标准ISBN
+func CleanISBN(isbn string) string {
+	isbn = strings.TrimSpace(isbn)
+	if isbn == "" {
+		return ""
+	}
+
+	re := regexp.MustCompile(`^(\d{10,13})(?:[/\-].*)?$`)
+	match := re.FindStringSubmatch(isbn)
+	if match != nil {
+		return match[1]
+	}
+
+	re2 := regexp.MustCompile(`^(\d{1,3}[\-]?\d{1,5}[\-]?\d{1,7}[\-]?\d{1,6}[\-]?\d{1})$`)
+	match2 := re2.FindStringSubmatch(isbn)
+	if match2 != nil {
+		return strings.ReplaceAll(match2[1], "-", "")
+	}
+
+	return isbn
+}
+
 // ============ materials CRUD ============
 
 func GetAllMaterials(db *sqlx.DB) ([]Material, error) {

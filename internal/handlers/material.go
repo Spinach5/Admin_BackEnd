@@ -97,7 +97,7 @@ func CreateMaterial() gin.HandlerFunc {
 		}
 
 		m := &models.Material{
-			ISBN:      req.ISBN,
+			ISBN:      models.CleanISBN(req.ISBN),
 			Title:     req.Title,
 			Author:    sql.NullString{String: req.Author, Valid: req.Author != ""},
 			Publisher: sql.NullString{String: req.Publisher, Valid: req.Publisher != ""},
@@ -164,7 +164,7 @@ func UpdateMaterial() gin.HandlerFunc {
 
 		m := &models.Material{
 			BookID:    id,
-			ISBN:      req.ISBN,
+			ISBN:      models.CleanISBN(req.ISBN),
 			Title:     req.Title,
 			Author:    sql.NullString{String: req.Author, Valid: req.Author != ""},
 			Publisher: sql.NullString{String: req.Publisher, Valid: req.Publisher != ""},
@@ -315,7 +315,7 @@ func convertMaterialRows(result *services.ExcelResult) ([]models.MaterialImportR
 			return ""
 		}
 
-		isbn := get("标准书号", "书号", "ISBN", "isbn")
+		isbn := models.CleanISBN(get("标准书号", "书号", "ISBN", "isbn"))
 		title := get("教材名称", "书名", "教材名")
 		if isbn == "" || title == "" {
 			// 跳过无效行

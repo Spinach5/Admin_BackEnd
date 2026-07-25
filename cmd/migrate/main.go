@@ -402,7 +402,7 @@ func main() {
 	appDB.MustExec(`
 		CREATE TABLE IF NOT EXISTS materials (
 			book_id     INT PRIMARY KEY AUTO_INCREMENT COMMENT '教材ID',
-			isbn        VARCHAR(20) UNIQUE NOT NULL COMMENT '教材(ISBN)',
+			isbn        VARCHAR(50) UNIQUE NOT NULL COMMENT '教材(ISBN)',
 			title       VARCHAR(200) NOT NULL COMMENT '书名',
 			author      VARCHAR(100) COMMENT '作者',
 			publisher   VARCHAR(100) COMMENT '出版社',
