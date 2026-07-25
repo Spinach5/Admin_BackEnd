@@ -90,6 +90,19 @@ func main() {
 			}
 
 			// 书籍管理
+			authorized.GET("/book/categories", handlers.GetBookCategories())
+			authorized.GET("/book/categories/detail", handlers.GetBookCategoriesWithCount())
+			authorized.POST("/book/categories", handlers.CreateBookCategory())
+			authorized.PUT("/book/categories/:id", handlers.UpdateBookCategory())
+			authorized.DELETE("/book/categories/:id", handlers.DeleteBookCategory())
+			authorized.GET("/book", handlers.GetBooks())
+			authorized.GET("/book/:id", handlers.GetBookByID())
+			authorized.POST("/book", handlers.CreateBook())
+			authorized.POST("/book/upload-image", handlers.V1UploadBookImage())
+			authorized.PUT("/book/:id", handlers.UpdateBook())
+			authorized.DELETE("/book/:id", handlers.DeleteBook())
+
+			// 书籍管理 (复数兼容)
 			authorized.GET("/books/categories", handlers.GetBookCategories())
 			authorized.GET("/books/categories/detail", handlers.GetBookCategoriesWithCount())
 			authorized.POST("/books/categories", handlers.CreateBookCategory())
@@ -145,6 +158,7 @@ func main() {
 
 			// 教材管理
 			authorized.GET("/materials", handlers.GetMaterials())
+			authorized.GET("/materials/semesters", handlers.GetSemesters())
 			authorized.POST("/materials", handlers.CreateMaterial())
 			authorized.PUT("/materials/:id", handlers.UpdateMaterial())
 			authorized.DELETE("/materials/:id", handlers.DeleteMaterial())
@@ -169,6 +183,19 @@ func main() {
 				v1Auth.GET("/clubs/categories", handlers.V1GetClubCategories())
 				v1Auth.GET("/clubs/:id", handlers.V1GetClubByID())
 				v1Auth.POST("/clubs", handlers.V1CreateClub())
+				v1Auth.GET("/book/categories", handlers.GetBookCategories())
+				v1Auth.GET("/book", handlers.V1GetBooks())
+				v1Auth.GET("/book/mine", handlers.V1GetMyBooks())
+				v1Auth.GET("/book/:id", handlers.V1GetBookByID())
+				v1Auth.POST("/book", handlers.V1CreateBook())
+				v1Auth.PUT("/book/:id", handlers.V1UpdateBook())
+				v1Auth.DELETE("/book/:id", handlers.V1DeleteBook())
+				v1Auth.POST("/book/upload-image", handlers.V1UploadBookImage())
+				v1Auth.POST("/book/upload", handlers.V1UploadBookImage())
+				v1Auth.DELETE("/book/:id/images/:imageId", handlers.V1DeleteBookImage())
+				v1Auth.DELETE("/book/images/:imageId", handlers.V1DeleteBookImage())
+				v1Auth.POST("/book/:id/want", handlers.V1ToggleWant())
+
 				v1Auth.GET("/books/categories", handlers.GetBookCategories())
 				v1Auth.GET("/books", handlers.V1GetBooks())
 				v1Auth.GET("/books/mine", handlers.V1GetMyBooks())
@@ -184,6 +211,7 @@ func main() {
 				v1Auth.GET("/foods", handlers.V1GetFoods())
 				v1Auth.GET("/foods/filters", handlers.V1GetFoodFilters())
 				v1Auth.GET("/materials", handlers.V1GetMaterials())
+				v1Auth.GET("/materials/semesters", handlers.GetSemesters())
 				v1Auth.GET("/materials/classes", handlers.V1GetClasses())
 				v1Auth.GET("/materials/:id", handlers.V1GetMaterialByID())
 				v1Auth.POST("/conversations", handlers.V1CreateConversation())

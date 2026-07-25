@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -65,9 +66,66 @@ type ClassPackage struct {
 // MaterialDetail 教材详情（含教材包信息）
 type MaterialDetail struct {
 	Material
-	CourseName string `json:"course_name,omitempty"`
-	PackageID  int    `json:"package_id,omitempty"`
-	Quantity   int    `json:"quantity,omitempty"`
+	CourseName string `db:"course_name" json:"course_name,omitempty"`
+	PackageID  int    `db:"package_id" json:"package_id,omitempty"`
+	Quantity   int    `db:"quantity" json:"quantity,omitempty"`
+}
+
+// MaterialResponse 教材响应结构体（展平 sql.Null* 类型）
+type MaterialResponse struct {
+	BookID    int      `json:"book_id"`
+	ISBN      string   `json:"isbn"`
+	Title     string   `json:"title"`
+	Author    string   `json:"author,omitempty"`
+	Publisher string   `json:"publisher,omitempty"`
+	Price     float64  `json:"price,omitempty"`
+	CreatedAt string   `json:"created_at"`
+	ExtraInfo string   `json:"extra_info,omitempty"`
+	Semester  string   `json:"semester,omitempty"`
+	Classes   []string `json:"classes,omitempty"`
+}
+
+// ToMaterialResponse 将 Material 转换为 MaterialResponse
+func (m *Material) ToMaterialResponse() MaterialResponse {
+	return MaterialResponse{
+		BookID:    m.BookID,
+		ISBN:      m.ISBN,
+		Title:     m.Title,
+		Author:    nullStringVal(m.Author),
+		Publisher: nullStringVal(m.Publisher),
+		Price:     nullFloatVal(m.Price),
+		CreatedAt: formatTime(m.CreatedAt),
+		ExtraInfo: nullStringVal(m.ExtraInfo),
+	}
+}
+
+// ToMaterialResponse 将 MaterialWithClasses 转换为 MaterialResponse
+func (m *MaterialWithClasses) ToMaterialResponse() MaterialResponse {
+	resp := m.Material.ToMaterialResponse()
+	resp.Semester = m.Semester
+	resp.Classes = m.Classes
+	return resp
+}
+
+func nullStringVal(s sql.NullString) string {
+	if s.Valid {
+		return s.String
+	}
+	return ""
+}
+
+func nullFloatVal(f sql.NullFloat64) float64 {
+	if f.Valid {
+		return f.Float64
+	}
+	return 0
+}
+
+func formatTime(t sql.NullTime) string {
+	if t.Valid {
+		return t.Time.Format("2006-01-02T15:04:05")
+	}
+	return ""
 }
 
 // CleanISBN 清理 ISBN，去除多余后缀（如 /52355-00），保留标准ISBN
@@ -99,6 +157,53 @@ func GetAllMaterials(db *sqlx.DB) ([]Material, error) {
 	err := db.Select(&materials, `SELECT book_id, isbn, title, author, publisher, price, created_at, extra_info
 		FROM materials ORDER BY book_id DESC`)
 	return materials, err
+}
+
+func GetAllMaterialsWithClasses(db *sqlx.DB) ([]MaterialWithClasses, error) {
+	materials := make([]Material, 0)
+	err := db.Select(&materials, `SELECT book_id, isbn, title, author, publisher, price, created_at, extra_info
+		FROM materials ORDER BY book_id DESC`)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]MaterialWithClasses, 0, len(materials))
+	for _, m := range materials {
+		var semesters []string
+		err := db.Select(&semesters, `SELECT DISTINCT p.semester FROM package_books pb
+			JOIN book_packages p ON pb.package_id = p.package_id
+			WHERE pb.book_id = ?`, m.BookID)
+		if err != nil {
+			return nil, err
+		}
+
+		var classes []string
+		err = db.Select(&classes, `SELECT DISTINCT c.class_name FROM package_books pb
+			JOIN book_packages p ON pb.package_id = p.package_id
+			JOIN class_packages cp ON p.package_id = cp.package_id
+			JOIN classes c ON cp.class_id = c.class_id
+			WHERE pb.book_id = ?
+			ORDER BY c.class_name`, m.BookID)
+		if err != nil {
+			return nil, err
+		}
+
+		semester := ""
+		if len(semesters) > 0 {
+			semester = semesters[0]
+		}
+
+		if classes == nil {
+			classes = []string{}
+		}
+
+		result = append(result, MaterialWithClasses{
+			Material: m,
+			Semester: semester,
+			Classes:  classes,
+		})
+	}
+	return result, nil
 }
 
 func GetMaterialByID(db *sqlx.DB, id int) (*Material, error) {
@@ -154,6 +259,59 @@ func SearchMaterials(db *sqlx.DB, keyword string) ([]Material, error) {
 		WHERE isbn LIKE ? OR title LIKE ? OR author LIKE ? OR publisher LIKE ?
 		ORDER BY book_id DESC`, like, like, like, like)
 	return materials, err
+}
+
+func SearchMaterialsWithClasses(db *sqlx.DB, keyword string) ([]MaterialWithClasses, error) {
+	if keyword == "" {
+		return []MaterialWithClasses{}, nil
+	}
+	like := "%" + keyword + "%"
+	materials := make([]Material, 0)
+	err := db.Select(&materials, `SELECT book_id, isbn, title, author, publisher, price, created_at, extra_info
+		FROM materials
+		WHERE isbn LIKE ? OR title LIKE ? OR author LIKE ? OR publisher LIKE ?
+		ORDER BY book_id DESC`, like, like, like, like)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]MaterialWithClasses, 0, len(materials))
+	for _, m := range materials {
+		var semesters []string
+		err := db.Select(&semesters, `SELECT DISTINCT p.semester FROM package_books pb
+			JOIN book_packages p ON pb.package_id = p.package_id
+			WHERE pb.book_id = ?`, m.BookID)
+		if err != nil {
+			return nil, err
+		}
+
+		var classes []string
+		err = db.Select(&classes, `SELECT DISTINCT c.class_name FROM package_books pb
+			JOIN book_packages p ON pb.package_id = p.package_id
+			JOIN class_packages cp ON p.package_id = cp.package_id
+			JOIN classes c ON cp.class_id = c.class_id
+			WHERE pb.book_id = ?
+			ORDER BY c.class_name`, m.BookID)
+		if err != nil {
+			return nil, err
+		}
+
+		semester := ""
+		if len(semesters) > 0 {
+			semester = semesters[0]
+		}
+
+		if classes == nil {
+			classes = []string{}
+		}
+
+		result = append(result, MaterialWithClasses{
+			Material: m,
+			Semester: semester,
+			Classes:  classes,
+		})
+	}
+	return result, nil
 }
 
 // ============ classes ============
@@ -361,6 +519,16 @@ func LinkClassPackage(db *sqlx.DB, classID, packageID int, academicYear string) 
 
 // ============ 查询接口 ============
 
+// GetSemesters 获取所有学期列表（用于下拉选择）
+func GetSemesters(db *sqlx.DB) ([]string, error) {
+	var semesters []string
+	err := db.Select(&semesters, `SELECT DISTINCT semester FROM book_packages WHERE semester IS NOT NULL AND semester != '' ORDER BY semester DESC`)
+	if err != nil {
+		return nil, err
+	}
+	return semesters, nil
+}
+
 // GetMaterialsByClassAndSemester 按班级和学期查询教材
 func GetMaterialsByClassAndSemester(db *sqlx.DB, className, semester string) ([]MaterialDetail, error) {
 	details := make([]MaterialDetail, 0)
@@ -380,6 +548,48 @@ func GetMaterialsByClassAndSemester(db *sqlx.DB, className, semester string) ([]
 		ORDER BY m.book_id`
 	err := db.Select(&details, query, className, semester)
 	return details, err
+}
+
+func GetMaterialsByClass(db *sqlx.DB, className string) ([]MaterialWithClasses, error) {
+	if className == "" {
+		return []MaterialWithClasses{}, nil
+	}
+
+	var classID int
+	err := db.Get(&classID, `SELECT class_id FROM classes WHERE class_name = ?`, className)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return []MaterialWithClasses{}, nil
+		}
+		return nil, err
+	}
+
+	var rows []struct {
+		Material
+		Semester string `db:"semester"`
+	}
+	query := `SELECT DISTINCT m.book_id, m.isbn, m.title, m.author, m.publisher, m.price, m.created_at, m.extra_info,
+			p.semester
+		FROM class_packages cp
+		JOIN book_packages p ON cp.package_id = p.package_id
+		JOIN package_books pb ON p.package_id = pb.package_id
+		JOIN materials m ON pb.book_id = m.book_id
+		WHERE cp.class_id = ?
+		ORDER BY m.book_id`
+	err = db.Select(&rows, query, classID)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]MaterialWithClasses, 0, len(rows))
+	for _, row := range rows {
+		result = append(result, MaterialWithClasses{
+			Material: row.Material,
+			Semester: row.Semester,
+			Classes:  []string{className},
+		})
+	}
+	return result, nil
 }
 
 // GetMaterialsBySemester 按学期查询所有教材（含关联班级）
@@ -449,9 +659,15 @@ type MaterialImportRow struct {
 
 // ImportMaterialsFromRows 事务性地导入教材数据
 // semester 必填；academicYear 可选
-func ImportMaterialsFromRows(db *sqlx.DB, rows []MaterialImportRow, semester, academicYear string) (inserted int, err error) {
+// ctx 用于检测客户端连接是否断开，避免无效处理
+func ImportMaterialsFromRows(db *sqlx.DB, rows []MaterialImportRow, semester, academicYear string, ctx ...context.Context) (inserted int, err error) {
 	if semester == "" {
 		return 0, errors.New("学期不能为空")
+	}
+
+	var cancelCtx context.Context
+	if len(ctx) > 0 && ctx[0] != nil {
+		cancelCtx = ctx[0]
 	}
 
 	tx, err := db.Beginx()
@@ -464,47 +680,116 @@ func ImportMaterialsFromRows(db *sqlx.DB, rows []MaterialImportRow, semester, ac
 		}
 	}()
 
+	isbnToBookID := make(map[string]int, len(rows))
+	classNameToClassID := make(map[string]int)
+
+	isbns := make([]string, 0, len(rows))
+	classNames := make([]string, 0)
 	for _, row := range rows {
 		if row.ISBN == "" || row.Title == "" {
 			continue
 		}
+		if _, ok := isbnToBookID[row.ISBN]; !ok {
+			isbnToBookID[row.ISBN] = 0
+			isbns = append(isbns, row.ISBN)
+		}
+		for _, cn := range row.ClassNames {
+			cn = strings.TrimSpace(cn)
+			if cn == "" {
+				continue
+			}
+			if _, ok := classNameToClassID[cn]; !ok {
+				classNameToClassID[cn] = 0
+				classNames = append(classNames, cn)
+			}
+		}
+	}
 
-		// 1. 查或建教材
+	if len(isbns) > 0 {
+		query, args, err := sqlx.In(`SELECT book_id, isbn FROM materials WHERE isbn IN (?)`, isbns)
+		if err != nil {
+			return 0, fmt.Errorf("构建批量查询失败: %w", err)
+		}
+		query = db.Rebind(query)
+		var existingBooks []struct {
+			BookID int    `db:"book_id"`
+			ISBN   string `db:"isbn"`
+		}
+		if err := db.Select(&existingBooks, query, args...); err != nil {
+			return 0, fmt.Errorf("批量查询已有教材失败: %w", err)
+		}
+		for _, b := range existingBooks {
+			isbnToBookID[b.ISBN] = b.BookID
+		}
+	}
+
+	if len(classNames) > 0 {
+		query, args, err := sqlx.In(`SELECT class_id, class_name FROM classes WHERE class_name IN (?)`, classNames)
+		if err != nil {
+			return 0, fmt.Errorf("构建班级批量查询失败: %w", err)
+		}
+		query = db.Rebind(query)
+		var existingClasses []struct {
+			ClassID   int    `db:"class_id"`
+			ClassName string `db:"class_name"`
+		}
+		if err := db.Select(&existingClasses, query, args...); err != nil {
+			return 0, fmt.Errorf("批量查询已有班级失败: %w", err)
+		}
+		for _, c := range existingClasses {
+			classNameToClassID[c.ClassName] = c.ClassID
+		}
+	}
+
+	for _, row := range rows {
+		if cancelCtx != nil {
+			select {
+			case <-cancelCtx.Done():
+				return inserted, fmt.Errorf("客户端已断开连接")
+			default:
+			}
+		}
+
+		if row.ISBN == "" || row.Title == "" {
+			continue
+		}
+
 		var bookID int
 		var existingBook Material
-		lookupErr := tx.Get(&existingBook,
-			`SELECT book_id, isbn, title, author, publisher, price, created_at, extra_info FROM materials WHERE isbn = ?`,
-			row.ISBN)
-		if lookupErr == nil {
-			bookID = existingBook.BookID
-			// 更新可空字段（仅当数据库中对应字段为空时才补全）
-			updates := []string{}
-			args := []interface{}{}
-			if row.Author != "" && !existingBook.Author.Valid {
-				updates = append(updates, "author = ?")
-				args = append(args, row.Author)
-			}
-			if row.Publisher != "" && !existingBook.Publisher.Valid {
-				updates = append(updates, "publisher = ?")
-				args = append(args, row.Publisher)
-			}
-			if row.Price > 0 && !existingBook.Price.Valid {
-				updates = append(updates, "price = ?")
-				args = append(args, row.Price)
-			}
-			if row.ExtraInfo != "" && !existingBook.ExtraInfo.Valid {
-				updates = append(updates, "extra_info = ?")
-				args = append(args, row.ExtraInfo)
-			}
-			if len(updates) > 0 {
-				args = append(args, bookID)
-				updateSQL := "UPDATE materials SET " + strings.Join(updates, ", ") + " WHERE book_id = ?"
-				if _, e := tx.Exec(updateSQL, args...); e != nil {
-					err = fmt.Errorf("更新教材失败: %w", e)
-					return
+		if existingID, ok := isbnToBookID[row.ISBN]; ok && existingID > 0 {
+			bookID = existingID
+			lookupErr := tx.Get(&existingBook,
+				`SELECT book_id, isbn, title, author, publisher, price, created_at, extra_info FROM materials WHERE book_id = ?`,
+				bookID)
+			if lookupErr == nil {
+				updates := []string{}
+				args := []interface{}{}
+				if row.Author != "" && !existingBook.Author.Valid {
+					updates = append(updates, "author = ?")
+					args = append(args, row.Author)
+				}
+				if row.Publisher != "" && !existingBook.Publisher.Valid {
+					updates = append(updates, "publisher = ?")
+					args = append(args, row.Publisher)
+				}
+				if row.Price > 0 && !existingBook.Price.Valid {
+					updates = append(updates, "price = ?")
+					args = append(args, row.Price)
+				}
+				if row.ExtraInfo != "" && !existingBook.ExtraInfo.Valid {
+					updates = append(updates, "extra_info = ?")
+					args = append(args, row.ExtraInfo)
+				}
+				if len(updates) > 0 {
+					args = append(args, bookID)
+					updateSQL := "UPDATE materials SET " + strings.Join(updates, ", ") + " WHERE book_id = ?"
+					if _, e := tx.Exec(updateSQL, args...); e != nil {
+						err = fmt.Errorf("更新教材失败: %w", e)
+						return
+					}
 				}
 			}
-		} else if errors.Is(lookupErr, sql.ErrNoRows) {
+		} else {
 			res, e := tx.Exec(`INSERT INTO materials (isbn, title, author, publisher, price, extra_info)
 				VALUES (?, ?, ?, ?, ?, ?)`,
 				row.ISBN, row.Title,
@@ -519,13 +804,18 @@ func ImportMaterialsFromRows(db *sqlx.DB, rows []MaterialImportRow, semester, ac
 			}
 			id, _ := res.LastInsertId()
 			bookID = int(id)
-		} else {
-			err = lookupErr
-			return
+			isbnToBookID[row.ISBN] = bookID
 		}
 
-		// 2. 处理每个班级
 		for _, className := range row.ClassNames {
+			if cancelCtx != nil {
+				select {
+				case <-cancelCtx.Done():
+					return inserted, fmt.Errorf("客户端已断开连接")
+				default:
+				}
+			}
+
 			className = strings.TrimSpace(className)
 			if className == "" {
 				continue
@@ -533,28 +823,31 @@ func ImportMaterialsFromRows(db *sqlx.DB, rows []MaterialImportRow, semester, ac
 
 			grade, major := ParseClassName(className)
 
-			// 查或建班级
-			classID, classErr := getOrCreateClassTx(tx, className, grade, major, row.Department)
-			if classErr != nil {
-				err = classErr
-				return
+			var classID int
+			if existingCID, ok := classNameToClassID[className]; ok && existingCID > 0 {
+				classID = existingCID
+			} else {
+				var classErr error
+				classID, classErr = getOrCreateClassTx(tx, className, grade, major, row.Department)
+				if classErr != nil {
+					err = classErr
+					return
+				}
+				classNameToClassID[className] = classID
 			}
 
-			// 查或建教材包
 			packageID, pkgErr := getOrCreatePackageTx(tx, grade, major, semester, academicYear)
 			if pkgErr != nil {
 				err = pkgErr
 				return
 			}
 
-			// 教材包-书关联
 			if _, e := tx.Exec(`INSERT IGNORE INTO package_books (package_id, book_id, quantity, is_required)
 				VALUES (?, ?, 1, 1)`, packageID, bookID); e != nil {
 				err = fmt.Errorf("关联教材包失败: %w", e)
 				return
 			}
 
-			// 班级-教材包关联
 			if _, e := tx.Exec(`INSERT IGNORE INTO class_packages (class_id, package_id, academic_year)
 				VALUES (?, ?, ?)`, classID, packageID, sql.NullString{String: academicYear, Valid: academicYear != ""}); e != nil {
 				err = fmt.Errorf("关联班级失败: %w", e)

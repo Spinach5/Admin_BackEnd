@@ -40,7 +40,13 @@ func V1GetMaterials() gin.HandlerFunc {
 				dto.InternalError(c, "查询教材失败")
 				return
 			}
-			dto.SuccessWithTotal(c, details, len(details))
+			resp := make([]models.MaterialResponse, 0, len(details))
+			for _, d := range details {
+				r := d.Material.ToMaterialResponse()
+				r.Semester = semester
+				resp = append(resp, r)
+			}
+			dto.SuccessWithTotal(c, resp, len(resp))
 			return
 		}
 
@@ -51,7 +57,11 @@ func V1GetMaterials() gin.HandlerFunc {
 			dto.InternalError(c, "查询教材失败")
 			return
 		}
-		dto.SuccessWithTotal(c, list, len(list))
+		resp := make([]models.MaterialResponse, 0, len(list))
+		for _, m := range list {
+			resp = append(resp, m.ToMaterialResponse())
+		}
+		dto.SuccessWithTotal(c, resp, len(resp))
 	}
 }
 
@@ -75,7 +85,24 @@ func V1GetMaterialByID() gin.HandlerFunc {
 			dto.Error(c, 404, "教材不存在")
 			return
 		}
-		dto.Success(c, m)
+		resp := m.ToMaterialResponse()
+		var semesters []string
+		err = database.DB.Select(&semesters, `SELECT DISTINCT p.semester FROM package_books pb
+			JOIN book_packages p ON pb.package_id = p.package_id
+			WHERE pb.book_id = ?`, m.BookID)
+		if err == nil && len(semesters) > 0 {
+			resp.Semester = semesters[0]
+		}
+		var classes []string
+		err = database.DB.Select(&classes, `SELECT DISTINCT c.class_name FROM package_books pb
+			JOIN book_packages p ON pb.package_id = p.package_id
+			JOIN class_packages cp ON p.package_id = cp.package_id
+			JOIN classes c ON cp.class_id = c.class_id
+			WHERE pb.book_id = ? ORDER BY c.class_name`, m.BookID)
+		if err == nil {
+			resp.Classes = classes
+		}
+		dto.Success(c, resp)
 	}
 }
 
