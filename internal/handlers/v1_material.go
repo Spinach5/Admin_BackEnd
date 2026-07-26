@@ -47,6 +47,7 @@ func V1GetMaterials() gin.HandlerFunc {
 			for _, d := range details {
 				r := d.Material.ToMaterialResponse()
 				r.Semester = semester
+				r.Classes = []string{className}
 				resp = append(resp, r)
 			}
 			dto.SuccessWithTotal(c, resp, len(resp))

@@ -83,7 +83,7 @@ type MaterialResponse struct {
 	CreatedAt string   `json:"created_at"`
 	ExtraInfo string   `json:"extra_info,omitempty"`
 	Semester  string   `json:"semester,omitempty"`
-	Classes   []string `json:"classes,omitempty"`
+	Classes   []string `json:"classes"`
 }
 
 // ToMaterialResponse 将 Material 转换为 MaterialResponse
@@ -624,8 +624,8 @@ func GetMaterialsBySemester(db *sqlx.DB, semester string) ([]MaterialWithClasses
 
 	// 批量查询所有教材的班级信息
 	type BookClassRow struct {
-		BookID    int
-		ClassName string
+		BookID    int    `db:"book_id"`
+		ClassName string `db:"class_name"`
 	}
 	var classRows []BookClassRow
 	err = db.Select(&classRows, `SELECT DISTINCT pb.book_id, c.class_name
