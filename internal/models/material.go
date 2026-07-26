@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -604,6 +605,8 @@ func GetMaterialsBySemester(db *sqlx.DB, semester string) ([]MaterialWithClasses
 		return nil, errors.New("学期不能为空")
 	}
 
+	log.Printf("GetMaterialsBySemester: 查询学期=%s", semester)
+
 	// 查询该学期下的所有教材（去重）
 	rows := make([]Material, 0)
 	err := db.Select(&rows, `SELECT DISTINCT m.book_id, m.isbn, m.title, m.author, m.publisher, m.price, m.created_at, m.extra_info
@@ -613,23 +616,39 @@ func GetMaterialsBySemester(db *sqlx.DB, semester string) ([]MaterialWithClasses
 		WHERE p.semester = ?
 		ORDER BY m.book_id DESC`, semester)
 	if err != nil {
+		log.Printf("GetMaterialsBySemester: 查询教材失败: %v", err)
 		return nil, err
 	}
 
-	// 为每本书查关联班级
+	log.Printf("GetMaterialsBySemester: 查询到 %d 本教材", len(rows))
+
+	// 批量查询所有教材的班级信息
+	type BookClassRow struct {
+		BookID    int
+		ClassName string
+	}
+	var classRows []BookClassRow
+	err = db.Select(&classRows, `SELECT DISTINCT pb.book_id, c.class_name
+		FROM package_books pb
+		JOIN book_packages p ON pb.package_id = p.package_id
+		JOIN class_packages cp ON p.package_id = cp.package_id
+		JOIN classes c ON cp.class_id = c.class_id
+		WHERE p.semester = ?
+		ORDER BY pb.book_id, c.class_name`, semester)
+	if err != nil {
+		log.Printf("GetMaterialsBySemester: 查询班级失败: %v", err)
+	}
+
+	// 构建 book_id -> classes 的映射
+	classMap := make(map[int][]string)
+	for _, row := range classRows {
+		classMap[row.BookID] = append(classMap[row.BookID], row.ClassName)
+	}
+
+	// 构建结果
 	result := make([]MaterialWithClasses, 0, len(rows))
 	for _, m := range rows {
-		var classes []string
-		err := db.Select(&classes, `SELECT DISTINCT c.class_name
-			FROM package_books pb
-			JOIN book_packages p ON pb.package_id = p.package_id
-			JOIN class_packages cp ON p.package_id = cp.package_id
-			JOIN classes c ON cp.class_id = c.class_id
-			WHERE pb.book_id = ? AND p.semester = ?
-			ORDER BY c.class_name`, m.BookID, semester)
-		if err != nil {
-			return nil, err
-		}
+		classes := classMap[m.BookID]
 		if classes == nil {
 			classes = []string{}
 		}
@@ -639,6 +658,8 @@ func GetMaterialsBySemester(db *sqlx.DB, semester string) ([]MaterialWithClasses
 			Classes:  classes,
 		})
 	}
+
+	log.Printf("GetMaterialsBySemester: 查询完成，共 %d 本教材", len(result))
 	return result, nil
 }
 

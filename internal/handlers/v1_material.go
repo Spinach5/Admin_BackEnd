@@ -27,6 +27,8 @@ func V1GetMaterials() gin.HandlerFunc {
 		semester := strings.TrimSpace(c.Query("semester"))
 		className := strings.TrimSpace(c.Query("class_name"))
 
+		log.Printf("V1GetMaterials: semester=%s, className=%s", semester, className)
+
 		if semester == "" {
 			dto.BadRequest(c, "请指定学期参数 (semester)")
 			return
@@ -40,6 +42,7 @@ func V1GetMaterials() gin.HandlerFunc {
 				dto.InternalError(c, "查询教材失败")
 				return
 			}
+			log.Printf("学生查询成功: %d 本教材", len(details))
 			resp := make([]models.MaterialResponse, 0, len(details))
 			for _, d := range details {
 				r := d.Material.ToMaterialResponse()
@@ -57,6 +60,7 @@ func V1GetMaterials() gin.HandlerFunc {
 			dto.InternalError(c, "查询教材失败")
 			return
 		}
+		log.Printf("学生查询成功(sem=%s): %d 本教材", semester, len(list))
 		resp := make([]models.MaterialResponse, 0, len(list))
 		for _, m := range list {
 			resp = append(resp, m.ToMaterialResponse())
