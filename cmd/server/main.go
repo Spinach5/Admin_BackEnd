@@ -2,7 +2,9 @@ package main
 
 import (
 	"log"
+	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"web-backend/internal/config"
@@ -234,8 +236,22 @@ func main() {
 		}
 	}()
 
+	// 路径归一化：折叠重复的斜杠（如 //api/captcha/solve -> /api/captcha/solve），
+	// 避免因客户端或反向代理拼出的双斜杠导致 404。
+	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if strings.Contains(req.URL.Path, "//") {
+			p := req.URL.Path
+			for strings.Contains(p, "//") {
+				p = strings.ReplaceAll(p, "//", "/")
+			}
+			req.URL.Path = p
+			req.URL.RawPath = ""
+		}
+		r.ServeHTTP(w, req)
+	})
+
 	log.Printf("服务器运行在：http://localhost:%s", cfg.Port)
-	if err := r.Run(":" + cfg.Port); err != nil {
+	if err := http.ListenAndServe(":"+cfg.Port, handler); err != nil {
 		log.Fatalf("服务器启动失败: %v", err)
 	}
 }
